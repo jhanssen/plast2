@@ -1,6 +1,10 @@
 #ifndef SCHEDULER_H
 #define SCHEDULER_H
 
+#include <Messages.h>
+#include <rct/SocketClient.h>
+#include <rct/SocketServer.h>
+#include <rct/Connection.h>
 #include <memory>
 
 class Scheduler : public std::enable_shared_from_this<Scheduler>
@@ -15,6 +19,13 @@ public:
     void init();
 
     static SharedPtr instance();
+
+private:
+    void addClient(const SocketClient::SharedPtr& client);
+    void handleJobMessage(const JobMessage::SharedPtr& msg);
+
+private:
+    SocketServer mServer;
 
 private:
     static WeakPtr sInstance;
