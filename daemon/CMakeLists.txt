@@ -8,6 +8,7 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
 set(SOURCES
     main.cpp
     Daemon.cpp
+    Preprocessor.cpp
     ProcessPool.cpp)
 
 add_executable(daemon ${SOURCES})

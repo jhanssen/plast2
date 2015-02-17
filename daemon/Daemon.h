@@ -1,6 +1,7 @@
 #ifndef DAEMON_H
 #define DAEMON_H
 
+#include "Preprocessor.h"
 #include <Messages.h>
 #include <rct/SocketClient.h>
 #include <rct/SocketServer.h>
@@ -25,6 +26,7 @@ private:
     void handleJobMessage(const JobMessage::SharedPtr& msg);
 
 private:
+    Preprocessor mPreprocessor;
     SocketServer mServer;
 
 private:

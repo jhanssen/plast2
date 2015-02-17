@@ -12,20 +12,23 @@ class Process;
 class ProcessPool
 {
 public:
+    typedef unsigned int Id;
+
     ProcessPool(int count);
     ~ProcessPool();
 
-    void run(const Path &command,
-             const List<String> &arguments = List<String>(),
-             const List<String> &environ = List<String>());
+    Id run(const Path &command,
+           const List<String> &arguments = List<String>(),
+           const List<String> &environ = List<String>());
 
-    Signal<std::function<void(Process*)> > &readyReadStdOut() { return mReadyReadStdOut; }
-    Signal<std::function<void(Process*)> > &readyReadStdErr() { return mReadyReadStdErr; }
-    Signal<std::function<void(Process*)> > &finished() { return mFinished; }
+    Signal<std::function<void(Id, Process*)> > &readyReadStdOut() { return mReadyReadStdOut; }
+    Signal<std::function<void(Id, Process*)> > &readyReadStdErr() { return mReadyReadStdErr; }
+    Signal<std::function<void(Id, Process*)> > &finished() { return mFinished; }
 
 private:
     struct Job
     {
+        Id id;
         Path command;
         List<String> arguments, environ;
     };
@@ -34,8 +37,9 @@ private:
 
 private:
     int mCount;
+    Id mNextId;
     List<Process*> mProcs, mAvail;
-    Signal<std::function<void(Process*)> > mReadyReadStdOut, mReadyReadStdErr, mFinished;
+    Signal<std::function<void(Id, Process*)> > mReadyReadStdOut, mReadyReadStdErr, mFinished;
 
     LinkedList<Job> mPending;
 };
