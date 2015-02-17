@@ -7,7 +7,8 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
 
 set(SOURCES
     main.cpp
-    Daemon.cpp)
+    Daemon.cpp
+    ProcessPool.cpp)
 
 add_executable(daemon ${SOURCES})
 target_link_libraries(daemon rct messages)
