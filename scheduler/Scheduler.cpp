@@ -21,6 +21,7 @@ Scheduler::~Scheduler()
 
 void Scheduler::handleJobMessage(const JobMessage::SharedPtr& msg)
 {
+    error() << "handle job message!";
 }
 
 void Scheduler::addClient(const SocketClient::SharedPtr& client)
