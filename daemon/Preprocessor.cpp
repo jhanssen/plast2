@@ -9,6 +9,8 @@ Preprocessor::Preprocessor()
             mBuffers[id].buf += proc->readAllStdOut();
         });
     mPool.readyReadStdErr().connect([this](ProcessPool::Id id, Process* proc) {
+            // throw stderr data away, mark job as having errors
+            proc->readAllStdErr();
             mBuffers[id].hasError = true;
         });
     mPool.finished().connect([this](ProcessPool::Id id, Process* proc) {
