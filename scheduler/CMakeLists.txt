@@ -7,7 +7,7 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
 
 set(SOURCES
     main.cpp
-    Server.cpp)
+    Scheduler.cpp)
 
-add_executable(server ${SOURCES})
-target_link_libraries(server rct)
+add_executable(scheduler ${SOURCES})
+target_link_libraries(scheduler rct)

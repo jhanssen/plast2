@@ -1,4 +1,4 @@
-#include "Server.h"
+#include "Scheduler.h"
 #include <rct/EventLoop.h>
 #include <rct/Log.h>
 #include <stdio.h>
@@ -17,6 +17,10 @@ int main(int argc, char** argv)
 
     EventLoop::SharedPtr loop(new EventLoop);
     loop->init(EventLoop::MainEventLoop|EventLoop::EnableSigIntHandler);
+
+    Scheduler::SharedPtr scheduler = std::make_shared<Scheduler>();
+    scheduler->init();
+
     loop->exec();
 
     return 0;

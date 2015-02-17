@@ -7,4 +7,4 @@ CMakeCache.txt
 cmake_install.cmake
 rct-config.h
 librct.a
-server/server
+scheduler/scheduler
