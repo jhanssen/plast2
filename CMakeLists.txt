@@ -6,5 +6,7 @@ include(rct/rct.cmake)
 include(messages/messages.cmake)
 
 add_subdirectory(scheduler)
+add_subdirectory(daemon)
 
 add_dependencies(scheduler rct messages)
+add_dependencies(daemon rct messages)
