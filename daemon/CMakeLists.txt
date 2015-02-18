@@ -9,6 +9,7 @@ set(SOURCES
     main.cpp
     CompilerArgs.cpp
     Daemon.cpp
+    Job.cpp
     Preprocessor.cpp
     ProcessPool.cpp)
 
