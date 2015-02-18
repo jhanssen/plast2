@@ -12,7 +12,7 @@ Scheduler::Scheduler(const Options& opts)
                 client = server->nextConnection();
                 if (!client)
                     return;
-                addClient(client);
+                addPeer(std::make_shared<Peer>(client));
             }
         });
     error() << "listening on" << mOpts.port;
@@ -26,38 +26,26 @@ Scheduler::~Scheduler()
 {
 }
 
-void Scheduler::handleHasJobsMessage(const HasJobsMessage::SharedPtr& msg, Connection* from)
+void Scheduler::addPeer(const Peer::SharedPtr& peer)
 {
-    // send to everyone but the source
-    HasJobsMessage newmsg(*msg);
-    newmsg.setPeer(from->client()->peerName());
-    for (Connection* conn : mConns) {
-        if (conn != from) {
-            conn->send(newmsg);
-        }
-    }
-}
-
-void Scheduler::addClient(const SocketClient::SharedPtr& client)
-{
-    Connection* conn = new Connection(client);
-    conn->newMessage().connect([this](const std::shared_ptr<Message>& msg, Connection* conn) {
-            switch (msg->messageId()) {
-            case HasJobsMessage::MessageId:
-                handleHasJobsMessage(std::static_pointer_cast<HasJobsMessage>(msg), conn);
-                break;
-            default:
-                error() << "Unexpected message Scheduler" << msg->messageId();
-                conn->finish(1);
+    mPeers.insert(peer);
+    peer->event().connect([this](const Peer::SharedPtr& peer, Peer::Event event, const Value& value) {
+            switch (event) {
+            case Peer::JobsAvailable: {
+                HasJobsMessage msg(value["count"].toInteger(),
+                                   value["port"].toInteger());
+                msg.setPeer(value["peer"].toString());
+                for (const Peer::SharedPtr& other : mPeers) {
+                    if (other != peer) {
+                        other->connection()->send(msg);
+                    }
+                }
+                break; }
+            case Peer::Disconnected:
+                mPeers.erase(peer);
                 break;
             }
         });
-    conn->disconnected().connect([this](Connection* conn) {
-            conn->disconnected().disconnect();
-            EventLoop::deleteLater(conn);
-            mConns.erase(conn);
-        });
-    mConns.insert(conn);
 }
 
 void Scheduler::init()

@@ -7,6 +7,7 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
 
 set(SOURCES
     main.cpp
+    Peer.cpp
     Scheduler.cpp)
 
 add_executable(scheduler ${SOURCES})
