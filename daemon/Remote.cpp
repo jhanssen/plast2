@@ -120,6 +120,7 @@ void Remote::post(const Job::SharedPtr& job)
     if (!job->isPreprocessed()) {
         job->statusChanged().connect([this](Job* job, Job::Status status) {
                 if (status == Job::Preprocessed) {
+                    error() << "preproc size" << job->preprocessed().size();
                     mPending.push_back(job->shared_from_this());
                     // send a HasJobsMessage to the scheduler
                     mConnection.send(HasJobsMessage(mPending.size(), Daemon::instance()->options().localPort));

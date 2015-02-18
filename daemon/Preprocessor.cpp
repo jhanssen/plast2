@@ -14,7 +14,7 @@ Preprocessor::Preprocessor()
         });
     mPool.readyReadStdErr().connect([this](ProcessPool::Id id, Process* proc) {
             // throw stderr data away, mark job as having errors
-            proc->readAllStdErr();
+            error() << proc->readAllStdErr();
             mJobs[id].hasError = true;
         });
     mPool.started().connect([this](ProcessPool::Id id, Process*) {
