@@ -7,6 +7,7 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
 
 set(SOURCES
     main.cpp
+    CompilerArgs.cpp
     Daemon.cpp
     Preprocessor.cpp
     ProcessPool.cpp)
