@@ -10,7 +10,7 @@ ProcessPool::~ProcessPool()
 {
 }
 
-void ProcessPool::runProcess(Process*& proc, const Job& job)
+bool ProcessPool::runProcess(Process*& proc, const Job& job)
 {
     if (!proc) {
         const Id id = job.id;
@@ -25,30 +25,39 @@ void ProcessPool::runProcess(Process*& proc, const Job& job)
             });
         proc->finished().connect([this, id](Process* proc) {
                 mFinished(id, proc);
-                if (!mPending.isEmpty()) {
+                while (!mPending.isEmpty()) {
                     // take one from the back of mPending if possible
-                    runProcess(proc, mPending.front());
-                    mPending.pop_front();
-                } else {
-                    // make this process available for new jobs
-                    mAvail.push_back(proc);
+                    if (!runProcess(proc, mPending.front())) {
+                        mError(mPending.front().id);
+                        mPending.pop_front();
+                    } else {
+                        mPending.pop_front();
+                        return;
+                    }
                 }
+                // make this process available for new jobs
+                mAvail.push_back(proc);
             });
     }
-    proc->start(job.command, job.arguments, job.environ);
+    return proc->start(job.command, job.arguments, job.environ);
 }
 
 ProcessPool::Id ProcessPool::run(const Path& path, const Path &command, const List<String> &arguments, const List<String> &environ)
 {
-    const Id id = ++mNextId;
+    Id id = ++mNextId;
+    if (!id)
+        id = ++mNextId;
+
     Job job = { id, path, command, arguments, environ };
     if (!mAvail.isEmpty()) {
         Process* proc = mAvail.back();
         mAvail.pop_back();
-        runProcess(proc, job);
+        if (!runProcess(proc, job))
+            return 0;
     } else if (mProcs.size() < mCount) {
         mProcs.push_back(0);
-        runProcess(mProcs.back(), job);
+        if (!runProcess(mProcs.back(), job))
+            return 0;
     } else {
         mPending.push_back(job);
     }

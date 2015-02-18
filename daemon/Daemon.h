@@ -29,7 +29,7 @@ private:
     void handleHasJobsMessage(const HasJobsMessage::SharedPtr& msg, Connection* conn);
 
 private:
-    SocketServer mServer;
+    SocketServer mTcpServer, mUnixServer;
     Local mLocal;
 
 private:

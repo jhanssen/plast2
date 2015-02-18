@@ -32,6 +32,12 @@ Local::Local()
             Job::finish(job.get());
             mJobs.erase(id);
         });
+    mPool.error().connect([this](ProcessPool::Id id) {
+            Job::SharedPtr job = mJobs[id].lock();
+            if (!job)
+                return;
+            job->mStatusChanged(job.get(), Job::Error);
+        });
 }
 
 Local::~Local()
@@ -44,5 +50,9 @@ void Local::post(const Job::SharedPtr& job)
     const String cmd = args.front();
     args.removeFirst();
     const ProcessPool::Id id = mPool.run(job->path(), cmd, args);
-    mJobs[id] = job;
+    if (id) {
+        mJobs[id] = job;
+    } else {
+        job->mStatusChanged(job.get(), Job::Error);
+    }
 }

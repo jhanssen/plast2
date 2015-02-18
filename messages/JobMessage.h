@@ -5,6 +5,7 @@
 #include <rct/Message.h>
 #include <rct/Path.h>
 #include <rct/String.h>
+#include <rct/Log.h>
 
 class JobMessage : public Message
 {
@@ -19,7 +20,7 @@ public:
     Path path() const { return mPath; }
     List<String> args() const { return mArgs; }
 
-    virtual void encode(Serializer& serializer);
+    virtual void encode(Serializer& serializer) const;
     virtual void decode(Deserializer& deserializer);
 
 private:
@@ -27,7 +28,7 @@ private:
     List<String> mArgs;
 };
 
-inline void JobMessage::encode(Serializer& serializer)
+inline void JobMessage::encode(Serializer& serializer) const
 {
     serializer << mPath << mArgs;
 }

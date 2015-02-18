@@ -15,14 +15,14 @@ public:
 
     int count() const { return mCount; }
 
-    virtual void encode(Serializer& serializer);
+    virtual void encode(Serializer& serializer) const;
     virtual void decode(Deserializer& deserializer);
 
 private:
     int mCount;
 };
 
-inline void HasJobsMessage::encode(Serializer& serializer)
+inline void HasJobsMessage::encode(Serializer& serializer) const
 {
     serializer << mCount;
 }

@@ -27,6 +27,8 @@ void Job::start()
     Local& local = Daemon::instance()->local();
     if (local.isAvailable())
         local.post(shared_from_this());
+    else
+        abort();
 }
 
 void Job::finish(Job* job)
