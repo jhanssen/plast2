@@ -14,10 +14,17 @@ public:
     typedef std::shared_ptr<Scheduler> SharedPtr;
     typedef std::weak_ptr<Scheduler> WeakPtr;
 
-    Scheduler();
+    struct Options
+    {
+        uint16_t port;
+    };
+
+    Scheduler(const Options& opts);
     ~Scheduler();
 
     void init();
+
+    const Options& options() { return mOpts; }
 
     static SharedPtr instance();
 
@@ -28,6 +35,7 @@ private:
 private:
     SocketServer mServer;
     Set<Connection*> mConns;
+    Options mOpts;
 
 private:
     static WeakPtr sInstance;

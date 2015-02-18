@@ -3,7 +3,8 @@
 
 Scheduler::WeakPtr Scheduler::sInstance;
 
-Scheduler::Scheduler()
+Scheduler::Scheduler(const Options& opts)
+    : mOpts(opts)
 {
     mServer.newConnection().connect([this](SocketServer* server) {
             SocketClient::SharedPtr client;
@@ -14,7 +15,7 @@ Scheduler::Scheduler()
                 addClient(client);
             }
         });
-    if (!mServer.listen(13290)) {
+    if (!mServer.listen(mOpts.port)) {
         error() << "couldn't tcp listen";
         abort();
     }
