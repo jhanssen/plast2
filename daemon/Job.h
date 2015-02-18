@@ -22,11 +22,12 @@ public:
 
     void start();
 
-    enum Status { Starting, Complete, Error };
+    enum Status { Preprocessing, Preprocessed, Compiling, Compiled, Error };
     Signal<std::function<void(Job*, Status)> >& statusChanged() { return mStatusChanged; }
     Signal<std::function<void(Job*)> >& readyReadStdOut() { return mReadyReadStdOut; }
     Signal<std::function<void(Job*)> >& readyReadStdErr() { return mReadyReadStdErr; }
 
+    bool isPreprocessed() const { return !mPreprocessed.isEmpty(); }
     Path path() const { return mPath; }
     String preprocessed() const { return mPreprocessed; }
     List<String> args() const { return mArgs; }
@@ -34,6 +35,8 @@ public:
 
     String readAllStdOut();
     String readAllStdErr();
+
+    String error() const { return mError; }
 
 private:
     Job(const Path& path, const List<String>& args, const String& preprocessed);
@@ -43,6 +46,7 @@ private:
 private:
     Signal<std::function<void(Job*, Status)> > mStatusChanged;
     Signal<std::function<void(Job*)> > mReadyReadStdOut, mReadyReadStdErr;
+    String mError;
     List<String> mArgs;
     std::shared_ptr<CompilerArgs> mCompilerArgs;
     Path mPath;
@@ -52,6 +56,8 @@ private:
     static Hash<Job*, SharedPtr> sJobs;
 
     friend class Local;
+    friend class Preprocessor;
+    friend class Remote;
 };
 
 #endif

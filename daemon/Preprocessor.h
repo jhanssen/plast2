@@ -7,6 +7,7 @@
 #include <rct/Path.h>
 #include <rct/String.h>
 #include "ProcessPool.h"
+#include "Job.h"
 
 class Preprocessor
 {
@@ -15,26 +16,19 @@ public:
     ~Preprocessor();
 
     void setCount(int count) { mPool.setCount(count); }
-
-    ProcessPool::Id preprocess(const Path& path, const Path& command, const List<String>& args);
-
-    Signal<std::function<void(ProcessPool::Id, String&&)> >& preprocessed() { return mPreprocessed; }
-    Signal<std::function<void(ProcessPool::Id, const String&)> >& error() { return mError; }
-
-private:
-    Signal<std::function<void(ProcessPool::Id, String&&)> > mPreprocessed;
-    Signal<std::function<void(ProcessPool::Id, const String&)> > mError;
+    void preprocess(const Job::SharedPtr& job);
 
 private:
     ProcessPool mPool;
     struct Data
     {
         Data() : hasError(false) {}
+        Data(const Job::SharedPtr& j) : hasError(false), job(j) {}
 
-        String buf;
         bool hasError;
+        Job::WeakPtr job;
     };
-    Hash<ProcessPool::Id, Data> mBuffers;
+    Hash<ProcessPool::Id, Data> mJobs;
 };
 
 #endif

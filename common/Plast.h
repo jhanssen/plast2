@@ -5,6 +5,7 @@
 
 namespace plast {
 
+Path resolveCompiler(const Path &path);
 Path defaultSocketFile();
 enum {
     DefaultServerPort = 5166,
@@ -16,7 +17,8 @@ const String DefaultServerHost = "127.0.0.1";
 
 enum {
     HasJobsMessageId = 32,
-    JobMessageId = 33
+    JobMessageId,
+    RequestJobsMessageId
 };
 
 } // namespace plast

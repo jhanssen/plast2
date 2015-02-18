@@ -33,10 +33,11 @@ void Daemon::handleJobMessage(const JobMessage::SharedPtr& msg, Connection* conn
     job->statusChanged().connect([conn](Job* job, Job::Status status) {
             error() << "job status changed" << job << status;
             switch (status) {
-            case Job::Complete:
+            case Job::Compiled:
                 conn->finish();
                 break;
             case Job::Error:
+                conn->write(job->error(), ResponseMessage::Stderr);
                 conn->finish(-1);
                 break;
             default:
@@ -65,7 +66,7 @@ void Daemon::addClient(const SocketClient::SharedPtr& client)
                 handleJobMessage(std::static_pointer_cast<JobMessage>(msg), conn);
                 break;
             default:
-                error() << "Unexpected message" << msg->messageId();
+                error() << "Unexpected message Daemon" << msg->messageId();
                 conn->finish(1);
                 break;
             }

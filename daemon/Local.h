@@ -15,6 +15,7 @@ public:
 
     bool isAvailable() const { return mPool.isIdle(); }
     void post(const Job::SharedPtr& job);
+    void run(const Job::SharedPtr& job);
 
 private:
     ProcessPool mPool;

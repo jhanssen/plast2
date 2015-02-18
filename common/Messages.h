@@ -3,6 +3,7 @@
 
 #include <JobMessage.h>
 #include <HasJobsMessage.h>
+#include <RequestJobsMessage.h>
 
 namespace messages {
 void init();

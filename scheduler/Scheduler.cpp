@@ -15,6 +15,7 @@ Scheduler::Scheduler(const Options& opts)
                 addClient(client);
             }
         });
+    error() << "listening on" << mOpts.port;
     if (!mServer.listen(mOpts.port)) {
         error() << "couldn't tcp listen";
         abort();
@@ -46,7 +47,7 @@ void Scheduler::addClient(const SocketClient::SharedPtr& client)
                 handleHasJobsMessage(std::static_pointer_cast<HasJobsMessage>(msg), conn);
                 break;
             default:
-                error() << "Unexpected message" << msg->messageId();
+                error() << "Unexpected message Scheduler" << msg->messageId();
                 conn->finish(1);
                 break;
             }

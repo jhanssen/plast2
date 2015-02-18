@@ -4,6 +4,7 @@
 #include "Job.h"
 #include "Preprocessor.h"
 #include <rct/Hash.h>
+#include <rct/Map.h>
 #include <rct/List.h>
 #include <rct/Connection.h>
 #include <rct/SocketClient.h>
@@ -24,6 +25,7 @@ private:
     void addClient(const SocketClient::SharedPtr& client);
     void handleJobMessage(const JobMessage::SharedPtr& msg, Connection* conn);
     void handleHasJobsMessage(const HasJobsMessage::SharedPtr& msg, Connection* conn);
+    void handleRequestJobsMessage(const RequestJobsMessage::SharedPtr& msg, Connection* conn);
 
 private:
     SocketServer mServer;
@@ -33,6 +35,22 @@ private:
 
     List<Job::WeakPtr> mPending;
     Hash<unsigned int, Job::WeakPtr> mPreprocessing, mBuidling;
+
+    struct Peer
+    {
+        String peer;
+        uint16_t port;
+
+        bool operator<(const Peer& other) const
+        {
+            if (peer < other.peer)
+                return true;
+            else if (peer > other.peer)
+                return false;
+            return port < other.port;
+        }
+    };
+    Map<Peer, Connection*> mPeers;
 };
 
 #endif

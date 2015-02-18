@@ -1,4 +1,5 @@
 #include "Client.h"
+#include <Plast.h>
 #include <Messages.h>
 #include <rct/Log.h>
 #include <stdio.h>
@@ -24,12 +25,12 @@ bool Client::run(int argc, char** argv)
                     fflush(f);
                 }
             } else {
-                error("Unexpected message: %d", message->messageId());
+                error("Unexpected message Client: %d", message->messageId());
             }
         });
     mConnection.finished().connect(std::bind([](){ EventLoop::eventLoop()->quit(); }));
     mConnection.disconnected().connect(std::bind([](){ EventLoop::eventLoop()->quit(); }));
-    if (!mConnection.connectUnix(Path::home().ensureTrailingSlash() + ".plast.sock")) {
+    if (!mConnection.connectUnix(plast::defaultSocketFile())) {
         error("Can't seem to connect to server");
         return false;
     }

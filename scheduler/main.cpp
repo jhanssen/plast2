@@ -21,7 +21,7 @@ inline bool validate(int64_t c, const char* name, String& err)
 int main(int argc, char** argv)
 {
     Config::registerOption<bool>("help", "Display this page", 'h');
-    Config::registerOption<int>("port", String::format<129>("Use this port, (default %d)", plast::DefaultDaemonPort),'p', plast::DefaultDaemonPort,
+    Config::registerOption<int>("port", String::format<129>("Use this port, (default %d)", plast::DefaultServerPort),'p', plast::DefaultServerPort,
                                 [](const int &count, String &err) { return validate<uint16_t>(count, "port", err); });
 
     const char *logFile = 0;

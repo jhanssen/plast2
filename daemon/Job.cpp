@@ -25,10 +25,13 @@ Job::SharedPtr Job::create(const Path& path, const List<String>& args, const Str
 void Job::start()
 {
     Local& local = Daemon::instance()->local();
-    if (local.isAvailable())
+    if (mCompilerArgs->mode != CompilerArgs::Compile) {
+        local.run(shared_from_this());
+    } else if (local.isAvailable()) {
         local.post(shared_from_this());
-    else
-        abort();
+    } else {
+        Daemon::instance()->remote().post(shared_from_this());
+    }
 }
 
 void Job::finish(Job* job)
