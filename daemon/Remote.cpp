@@ -1,8 +1,17 @@
 #include "Remote.h"
+#include "Daemon.h"
 #include <rct/Log.h>
 
 Remote::Remote()
     : mNextId(0)
+{
+}
+
+Remote::~Remote()
+{
+}
+
+void Remote::init()
 {
     mServer.newConnection().connect([this](SocketServer* server) {
             SocketClient::SharedPtr client;
@@ -13,7 +22,11 @@ Remote::Remote()
                 addClient(client);
             }
         });
-    if (!mServer.listen(13291)) {
+
+    const Daemon::Options& opts = Daemon::instance()->options();
+    mPreprocessor.setCount(opts.preprocessCount);
+
+    if (!mServer.listen(opts.localPort)) {
         error() << "Unable to tcp listen";
         abort();
     }
@@ -33,14 +46,10 @@ Remote::Remote()
         });
     mConnection.finished().connect(std::bind([](){ error() << "server finished connection"; abort(); }));
     mConnection.disconnected().connect(std::bind([](){ error() << "server closed connection"; abort(); }));
-    if (!mConnection.connectTcp("127.0.0.1", 13290)) {
+    if (!mConnection.connectTcp(opts.serverHost, opts.serverPort)) {
         error("Can't seem to connect to server");
         abort();
     }
-}
-
-Remote::~Remote()
-{
 }
 
 void Remote::handleJobMessage(const JobMessage::SharedPtr& msg, Connection* conn)

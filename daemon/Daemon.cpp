@@ -4,7 +4,8 @@
 
 Daemon::WeakPtr Daemon::sInstance;
 
-Daemon::Daemon()
+Daemon::Daemon(const Options& opts)
+    : mOptions(opts)
 {
     mServer.newConnection().connect([this](SocketServer* server) {
             SocketClient::SharedPtr client;
@@ -15,7 +16,7 @@ Daemon::Daemon()
                 addClient(client);
             }
         });
-    if (!mServer.listen(Path::home().ensureTrailingSlash() + ".plast.sock")) {
+    if (!mServer.listen(mOptions.localUnixPath)) {
         error() << "Unable to unix listen";
         abort();
     }
@@ -79,4 +80,6 @@ void Daemon::init()
 {
     sInstance = shared_from_this();
     messages::init();
+    mLocal.init();
+    mRemote.init();
 }

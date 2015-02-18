@@ -1,11 +1,20 @@
 #include "Local.h"
+#include "Daemon.h"
 #include <rct/Process.h>
 #include <rct/ThreadPool.h>
 #include <rct/Log.h>
 
 Local::Local()
-    : mPool(ThreadPool::idealThreadCount() + 2)
 {
+}
+
+Local::~Local()
+{
+}
+
+void Local::init()
+{
+    mPool.setCount(Daemon::instance()->options().jobCount);
     mPool.readyReadStdOut().connect([this](ProcessPool::Id id, Process* proc) {
             Job::SharedPtr job = mJobs[id].lock();
             if (!job)
@@ -39,10 +48,6 @@ Local::Local()
                 return;
             job->mStatusChanged(job.get(), Job::Error);
         });
-}
-
-Local::~Local()
-{
 }
 
 static inline Path resolveCommand(const Path &path)

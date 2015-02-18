@@ -11,6 +11,8 @@ public:
     Local();
     ~Local();
 
+    void init();
+
     bool isAvailable() const { return mPool.isIdle(); }
     void post(const Job::SharedPtr& job);
 

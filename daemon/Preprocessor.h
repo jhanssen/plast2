@@ -14,6 +14,8 @@ public:
     Preprocessor();
     ~Preprocessor();
 
+    void setCount(int count) { mPool.setCount(count); }
+
     ProcessPool::Id preprocess(const Path& path, const Path& command, const List<String>& args);
 
     Signal<std::function<void(ProcessPool::Id, String&&)> >& preprocessed() { return mPreprocessed; }

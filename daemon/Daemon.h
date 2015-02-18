@@ -15,13 +15,24 @@ public:
     typedef std::shared_ptr<Daemon> SharedPtr;
     typedef std::weak_ptr<Daemon> WeakPtr;
 
-    Daemon();
+    struct Options
+    {
+        int jobCount;
+        int preprocessCount;
+        String serverHost;
+        uint16_t serverPort;
+        uint16_t localPort;
+        Path localUnixPath;
+    };
+
+    Daemon(const Options& opts);
     ~Daemon();
 
     void init();
 
     Local& local() { return mLocal; }
     Remote& remote() { return mRemote; }
+    const Options& options() const { return mOptions; }
 
     static SharedPtr instance();
 
@@ -33,6 +44,7 @@ private:
     SocketServer mServer;
     Local mLocal;
     Remote mRemote;
+    Options mOptions;
 
 private:
     static WeakPtr sInstance;

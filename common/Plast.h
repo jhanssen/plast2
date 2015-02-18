@@ -12,6 +12,7 @@ enum {
     DefaultDiscoveryPort = 5168,
     DefaultHttpPort = 5169
 };
+const String DefaultServerHost = "127.0.0.1";
 
 enum {
     HasJobsMessageId = 32,

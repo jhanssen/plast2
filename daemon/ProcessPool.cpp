@@ -11,6 +11,11 @@ ProcessPool::~ProcessPool()
 {
 }
 
+void ProcessPool::setCount(int count)
+{
+    mCount = count;
+}
+
 bool ProcessPool::runProcess(Process*& proc, const Job& job)
 {
     static Hash<Process*, Id> ids;

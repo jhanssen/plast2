@@ -16,6 +16,8 @@ public:
     Remote();
     ~Remote();
 
+    void init();
+
     void post(const Job::SharedPtr& job);
 
 private:

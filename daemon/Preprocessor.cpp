@@ -3,7 +3,6 @@
 #include <assert.h>
 
 Preprocessor::Preprocessor()
-    : mPool(10)
 {
     mPool.readyReadStdOut().connect([this](ProcessPool::Id id, Process* proc) {
             mBuffers[id].buf += proc->readAllStdOut();

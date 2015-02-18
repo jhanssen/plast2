@@ -14,8 +14,10 @@ class ProcessPool
 public:
     typedef unsigned int Id;
 
-    ProcessPool(int count);
+    ProcessPool(int count = 0);
     ~ProcessPool();
+
+    void setCount(int count);
 
     Id run(const Path& path,
            const Path& command,
