@@ -1,4 +1,5 @@
-#include <Scheduler.h>
+#include "Scheduler.h"
+#include <rct/Log.h>
 
 Scheduler::WeakPtr Scheduler::sInstance;
 
@@ -13,15 +14,26 @@ Scheduler::Scheduler()
                 addClient(client);
             }
         });
+    if (!mServer.listen(13290)) {
+        error() << "couldn't tcp listen";
+        abort();
+    }
 }
 
 Scheduler::~Scheduler()
 {
 }
 
-void Scheduler::handleHasJobsMessage(const HasJobsMessage::SharedPtr& msg)
+void Scheduler::handleHasJobsMessage(const HasJobsMessage::SharedPtr& msg, Connection* from)
 {
-    error() << "handle job message!";
+    // send to everyone but the source
+    HasJobsMessage newmsg(*msg);
+    newmsg.setPeer(from->client()->peerName());
+    for (Connection* conn : mConns) {
+        if (conn != from) {
+            conn->send(newmsg);
+        }
+    }
 }
 
 void Scheduler::addClient(const SocketClient::SharedPtr& client)
@@ -30,7 +42,7 @@ void Scheduler::addClient(const SocketClient::SharedPtr& client)
     conn->newMessage().connect([this](const std::shared_ptr<Message>& msg, Connection* conn) {
             switch (msg->messageId()) {
             case HasJobsMessage::MessageId:
-                handleHasJobsMessage(std::static_pointer_cast<HasJobsMessage>(msg));
+                handleHasJobsMessage(std::static_pointer_cast<HasJobsMessage>(msg), conn);
                 break;
             default:
                 error() << "Unexpected message" << msg->messageId();
@@ -38,10 +50,12 @@ void Scheduler::addClient(const SocketClient::SharedPtr& client)
                 break;
             }
         });
-    conn->disconnected().connect([](Connection* conn) {
+    conn->disconnected().connect([this](Connection* conn) {
             conn->disconnected().disconnect();
             EventLoop::deleteLater(conn);
+            mConns.erase(conn);
         });
+    mConns.insert(conn);
 }
 
 void Scheduler::init()

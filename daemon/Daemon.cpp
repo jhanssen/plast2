@@ -6,22 +6,16 @@ Daemon::WeakPtr Daemon::sInstance;
 
 Daemon::Daemon()
 {
-    auto conn = [this](SocketServer* server) {
-        SocketClient::SharedPtr client;
-        for (;;) {
-            client = server->nextConnection();
-            if (!client)
-                return;
-            addClient(client);
-        }
-    };
-    mTcpServer.newConnection().connect(conn);
-    if (!mTcpServer.listen(13119)) {
-        error() << "Unable to tcp listen";
-        abort();
-    }
-    mUnixServer.newConnection().connect(conn);
-    if (!mUnixServer.listen(Path::home().ensureTrailingSlash() + ".plast.sock")) {
+    mServer.newConnection().connect([this](SocketServer* server) {
+            SocketClient::SharedPtr client;
+            for (;;) {
+                client = server->nextConnection();
+                if (!client)
+                    return;
+                addClient(client);
+            }
+        });
+    if (!mServer.listen(Path::home().ensureTrailingSlash() + ".plast.sock")) {
         error() << "Unable to unix listen";
         abort();
     }
@@ -60,11 +54,6 @@ void Daemon::handleJobMessage(const JobMessage::SharedPtr& msg, Connection* conn
     job->start();
 }
 
-void Daemon::handleHasJobsMessage(const HasJobsMessage::SharedPtr& msg, Connection* conn)
-{
-    error() << "handle job message!";
-}
-
 void Daemon::addClient(const SocketClient::SharedPtr& client)
 {
     error() << "client added";
@@ -73,9 +62,6 @@ void Daemon::addClient(const SocketClient::SharedPtr& client)
             switch (msg->messageId()) {
             case JobMessage::MessageId:
                 handleJobMessage(std::static_pointer_cast<JobMessage>(msg), conn);
-                break;
-            case HasJobsMessage::MessageId:
-                handleHasJobsMessage(std::static_pointer_cast<HasJobsMessage>(msg), conn);
                 break;
             default:
                 error() << "Unexpected message" << msg->messageId();

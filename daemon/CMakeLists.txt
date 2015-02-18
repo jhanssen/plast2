@@ -12,7 +12,8 @@ set(SOURCES
     Job.cpp
     Local.cpp
     Preprocessor.cpp
-    ProcessPool.cpp)
+    ProcessPool.cpp
+    Remote.cpp)
 
 add_executable(daemon ${SOURCES})
-target_link_libraries(daemon rct messages)
+target_link_libraries(daemon rct common)

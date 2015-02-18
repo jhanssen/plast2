@@ -10,4 +10,4 @@ set(SOURCES
     Scheduler.cpp)
 
 add_executable(scheduler ${SOURCES})
-target_link_libraries(scheduler rct messages)
+target_link_libraries(scheduler rct common)

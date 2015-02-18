@@ -10,4 +10,4 @@ set(SOURCES
     Client.cpp)
 
 add_executable(plastc ${SOURCES})
-target_link_libraries(plastc rct messages)
+target_link_libraries(plastc rct common)

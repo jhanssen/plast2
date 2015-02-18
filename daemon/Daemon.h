@@ -2,6 +2,7 @@
 #define DAEMON_H
 
 #include "Local.h"
+#include "Remote.h"
 #include <Messages.h>
 #include <rct/SocketClient.h>
 #include <rct/SocketServer.h>
@@ -20,17 +21,18 @@ public:
     void init();
 
     Local& local() { return mLocal; }
+    Remote& remote() { return mRemote; }
 
     static SharedPtr instance();
 
 private:
     void addClient(const SocketClient::SharedPtr& client);
     void handleJobMessage(const JobMessage::SharedPtr& msg, Connection* conn);
-    void handleHasJobsMessage(const HasJobsMessage::SharedPtr& msg, Connection* conn);
 
 private:
-    SocketServer mTcpServer, mUnixServer;
+    SocketServer mServer;
     Local mLocal;
+    Remote mRemote;
 
 private:
     static WeakPtr sInstance;

@@ -1,6 +1,7 @@
 #ifndef JOBMESSAGE_H
 #define JOBMESSAGE_H
 
+#include <Plast.h>
 #include <rct/List.h>
 #include <rct/Message.h>
 #include <rct/Path.h>
@@ -12,7 +13,7 @@ class JobMessage : public Message
 public:
     typedef std::shared_ptr<JobMessage> SharedPtr;
 
-    enum { MessageId = 33 };
+    enum { MessageId = plast::JobMessageId };
 
     JobMessage() : Message(MessageId) {}
     JobMessage(const Path& path, const List<String>& args) : Message(MessageId), mPath(path), mArgs(args) {}

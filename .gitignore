@@ -7,7 +7,7 @@ CMakeCache.txt
 cmake_install.cmake
 rct-config.h
 librct.a
-libmessages.a
+libcommon.a
 daemon/daemon
 scheduler/scheduler
 client/plastc
