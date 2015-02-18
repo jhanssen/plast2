@@ -1,6 +1,7 @@
 #ifndef JOB_H
 #define JOB_H
 
+#include <rct/Hash.h>
 #include <rct/List.h>
 #include <rct/String.h>
 #include <rct/SignalSlot.h>
@@ -11,8 +12,12 @@ class CompilerArgs;
 class Job
 {
 public:
-    Job(const List<String>& args);
+    typedef std::shared_ptr<Job> SharedPtr;
+    typedef std::weak_ptr<Job> WeakPtr;
+
     ~Job();
+
+    static SharedPtr create(const List<String>& args);
 
     void start();
 
@@ -20,10 +25,13 @@ public:
     Signal<std::function<void(Job*, Status)> >& statusChanged() { return mStatusChanged; }
 
 private:
-    Signal<std::function<void(Job*, Status)> > mStatusChanged;
+    Job(const List<String>& args);
 
 private:
+    Signal<std::function<void(Job*, Status)> > mStatusChanged;
     std::shared_ptr<CompilerArgs> mArgs;
+
+    static Hash<Job*, SharedPtr> sJobs;
 };
 
 #endif
