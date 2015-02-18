@@ -11,7 +11,7 @@ add_subdirectory(client)
 
 add_dependencies(scheduler rct messages)
 add_dependencies(daemon rct messages)
-add_dependencies(client rct messages)
+add_dependencies(plastc rct messages)
 
 if (EXISTS "rules.ninja")
   add_custom_target(release COMMAND cmake -GNinja -DCMAKE_BUILD_TYPE=Release . WORKING_DIRECTORY .)

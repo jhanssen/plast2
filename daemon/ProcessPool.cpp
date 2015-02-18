@@ -44,6 +44,7 @@ bool ProcessPool::runProcess(Process*& proc, const Job& job)
                 mAvail.push_back(proc);
             });
     }
+    proc->clear();
     ids[proc] = job.id;
     if (!job.path.isEmpty()) {
         proc->setCwd(job.path);

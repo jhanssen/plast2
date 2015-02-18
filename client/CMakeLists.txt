@@ -9,5 +9,5 @@ set(SOURCES
     main.cpp
     Client.cpp)
 
-add_executable(client ${SOURCES})
-target_link_libraries(client rct messages)
+add_executable(plastc ${SOURCES})
+target_link_libraries(plastc rct messages)
