@@ -10,6 +10,7 @@ set(SOURCES
     CompilerArgs.cpp
     Daemon.cpp
     Job.cpp
+    Local.cpp
     Preprocessor.cpp
     ProcessPool.cpp)
 

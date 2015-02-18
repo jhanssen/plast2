@@ -15,6 +15,8 @@ void ProcessPool::runProcess(Process*& proc, const Job& job)
     if (!proc) {
         const Id id = job.id;
         proc = new Process;
+        if (!job.path.isEmpty())
+            proc->setCwd(job.path);
         proc->readyReadStdOut().connect([this, id](Process* proc) {
                 mReadyReadStdOut(id, proc);
             });
@@ -36,10 +38,10 @@ void ProcessPool::runProcess(Process*& proc, const Job& job)
     proc->start(job.command, job.arguments, job.environ);
 }
 
-ProcessPool::Id ProcessPool::run(const Path &command, const List<String> &arguments, const List<String> &environ)
+ProcessPool::Id ProcessPool::run(const Path& path, const Path &command, const List<String> &arguments, const List<String> &environ)
 {
     const Id id = ++mNextId;
-    Job job = { id, command, arguments, environ };
+    Job job = { id, path, command, arguments, environ };
     if (!mAvail.isEmpty()) {
         Process* proc = mAvail.back();
         mAvail.pop_back();

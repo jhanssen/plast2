@@ -22,7 +22,7 @@ public:
 
 private:
     void addClient(const SocketClient::SharedPtr& client);
-    void handleJobMessage(const JobMessage::SharedPtr& msg);
+    void handleHasJobsMessage(const HasJobsMessage::SharedPtr& msg);
 
 private:
     SocketServer mServer;

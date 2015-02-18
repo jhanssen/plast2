@@ -1,7 +1,7 @@
 #ifndef DAEMON_H
 #define DAEMON_H
 
-#include "Preprocessor.h"
+#include "Local.h"
 #include <Messages.h>
 #include <rct/SocketClient.h>
 #include <rct/SocketServer.h>
@@ -19,15 +19,18 @@ public:
 
     void init();
 
+    Local& local() { return mLocal; }
+
     static SharedPtr instance();
 
 private:
     void addClient(const SocketClient::SharedPtr& client);
-    void handleJobMessage(const JobMessage::SharedPtr& msg);
+    void handleJobMessage(const JobMessage::SharedPtr& msg, Connection* conn);
+    void handleHasJobsMessage(const HasJobsMessage::SharedPtr& msg, Connection* conn);
 
 private:
-    Preprocessor mPreprocessor;
     SocketServer mServer;
+    Local mLocal;
 
 private:
     static WeakPtr sInstance;

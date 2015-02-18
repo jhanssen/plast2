@@ -31,7 +31,7 @@ Preprocessor::~Preprocessor()
 {
 }
 
-ProcessPool::Id Preprocessor::preprocess(const Path& command, const List<String>& args)
+ProcessPool::Id Preprocessor::preprocess(const Path& path, const Path& command, const List<String>& args)
 {
-    return mPool.run(command, args);
+    return mPool.run(path, command, args);
 }

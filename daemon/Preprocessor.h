@@ -14,7 +14,7 @@ public:
     Preprocessor();
     ~Preprocessor();
 
-    ProcessPool::Id preprocess(const Path& command, const List<String>& args);
+    ProcessPool::Id preprocess(const Path& path, const Path& command, const List<String>& args);
 
     Signal<std::function<void(ProcessPool::Id, String&&)> >& preprocessed() { return mPreprocessed; }
     Signal<std::function<void(ProcessPool::Id, const String&)> >& error() { return mError; }

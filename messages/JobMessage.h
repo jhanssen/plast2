@@ -1,35 +1,40 @@
 #ifndef JOBMESSAGE_H
 #define JOBMESSAGE_H
 
+#include <rct/List.h>
 #include <rct/Message.h>
+#include <rct/Path.h>
+#include <rct/String.h>
 
 class JobMessage : public Message
 {
 public:
     typedef std::shared_ptr<JobMessage> SharedPtr;
 
-    enum { MessageId = 32 };
+    enum { MessageId = 33 };
 
-    JobMessage() : Message(MessageId), mCount(0) {}
-    JobMessage(int count) : Message(MessageId), mCount(count) {}
+    JobMessage() : Message(MessageId) {}
+    JobMessage(const Path& path, const List<String>& args) : Message(MessageId), mPath(path), mArgs(args) {}
 
-    int count() const { return mCount; }
+    Path path() const { return mPath; }
+    List<String> args() const { return mArgs; }
 
     virtual void encode(Serializer& serializer);
     virtual void decode(Deserializer& deserializer);
 
 private:
-    int mCount;
+    Path mPath;
+    List<String> mArgs;
 };
 
 inline void JobMessage::encode(Serializer& serializer)
 {
-    serializer << mCount;
+    serializer << mPath << mArgs;
 }
 
 inline void JobMessage::decode(Deserializer& deserializer)
 {
-    deserializer >> mCount;
+    deserializer >> mPath >> mArgs;
 }
 
 #endif

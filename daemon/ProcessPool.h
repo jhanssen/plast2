@@ -17,19 +17,22 @@ public:
     ProcessPool(int count);
     ~ProcessPool();
 
-    Id run(const Path &command,
-           const List<String> &arguments = List<String>(),
-           const List<String> &environ = List<String>());
+    Id run(const Path& path,
+           const Path& command,
+           const List<String>& arguments = List<String>(),
+           const List<String>& environ = List<String>());
 
     Signal<std::function<void(Id, Process*)> > &readyReadStdOut() { return mReadyReadStdOut; }
     Signal<std::function<void(Id, Process*)> > &readyReadStdErr() { return mReadyReadStdErr; }
     Signal<std::function<void(Id, Process*)> > &finished() { return mFinished; }
 
+    bool isIdle() const { return !mAvail.isEmpty() || mProcs.size() < mCount; }
+
 private:
     struct Job
     {
         Id id;
-        Path command;
+        Path path, command;
         List<String> arguments, environ;
     };
 
