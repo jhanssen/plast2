@@ -1,6 +1,7 @@
 #include "Local.h"
 #include <rct/Process.h>
 #include <rct/ThreadPool.h>
+#include <rct/Log.h>
 
 Local::Local()
     : mPool(ThreadPool::idealThreadCount() + 2)
@@ -44,10 +45,35 @@ Local::~Local()
 {
 }
 
+static inline Path resolveCommand(const Path &path)
+{
+    const String fileName = path.fileName();
+    const List<String> paths = String(getenv("PATH")).split(':');
+    // error() << fileName;
+    for (const auto &p : paths) {
+        const Path orig = p + "/" + fileName;
+        Path exec = orig;
+        // error() << "Trying" << exec;
+        if (exec.resolve()) {
+            const char *fileName = exec.fileName();
+            if (strcmp(fileName, "plastc") && strcmp(fileName, "gcc-rtags-wrapper.sh") && strcmp(fileName, "icecc")) {
+                return orig;
+            }
+        }
+    }
+    return Path();
+}
+
 void Local::post(const Job::SharedPtr& job)
 {
     List<String> args = job->args();
-    const String cmd = args.front();
+    const Path cmd = resolveCommand(args.front());
+    if (cmd.isEmpty()) {
+        error() << "Unable to resolve compiler" << args.front();
+        job->mStatusChanged(job.get(), Job::Error);
+        return;
+    }
+    error() << "Compiler resolved to" << cmd;
     args.removeFirst();
     const ProcessPool::Id id = mPool.run(job->path(), cmd, args);
     if (id) {

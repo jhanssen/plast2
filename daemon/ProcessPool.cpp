@@ -1,5 +1,6 @@
 #include "ProcessPool.h"
 #include <rct/Process.h>
+#include <rct/Log.h>
 
 ProcessPool::ProcessPool(int count)
     : mCount(count), mNextId(0)
@@ -12,18 +13,22 @@ ProcessPool::~ProcessPool()
 
 bool ProcessPool::runProcess(Process*& proc, const Job& job)
 {
+    static Hash<Process*, Id> ids;
     if (!proc) {
-        const Id id = job.id;
         proc = new Process;
-        if (!job.path.isEmpty())
-            proc->setCwd(job.path);
-        proc->readyReadStdOut().connect([this, id](Process* proc) {
+        proc->readyReadStdOut().connect([this](Process* proc) {
+                const Id id = ids[proc];
                 mReadyReadStdOut(id, proc);
             });
-        proc->readyReadStdErr().connect([this, id](Process* proc) {
+        proc->readyReadStdErr().connect([this](Process* proc) {
+                const Id id = ids[proc];
                 mReadyReadStdErr(id, proc);
             });
-        proc->finished().connect([this, id](Process* proc) {
+        proc->finished().connect([this](Process* proc) {
+                Hash<Process*, Id>::iterator idit = ids.find(proc);
+                assert(idit != ids.end());
+                const Id id = idit->second;
+                ids.erase(idit);
                 mFinished(id, proc);
                 while (!mPending.isEmpty()) {
                     // take one from the back of mPending if possible
@@ -38,6 +43,10 @@ bool ProcessPool::runProcess(Process*& proc, const Job& job)
                 // make this process available for new jobs
                 mAvail.push_back(proc);
             });
+    }
+    ids[proc] = job.id;
+    if (!job.path.isEmpty()) {
+        proc->setCwd(job.path);
     }
     return proc->start(job.command, job.arguments, job.environ);
 }
