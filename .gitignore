@@ -10,3 +10,4 @@ librct.a
 libmessages.a
 daemon/daemon
 scheduler/scheduler
+client/client
