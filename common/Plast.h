@@ -18,7 +18,8 @@ const String DefaultServerHost = "127.0.0.1";
 enum {
     HasJobsMessageId = 32,
     JobMessageId,
-    RequestJobsMessageId
+    RequestJobsMessageId,
+    HandshakeMessageId
 };
 
 } // namespace plast

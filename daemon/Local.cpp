@@ -1,5 +1,6 @@
 #include "Local.h"
 #include "Daemon.h"
+#include "CompilerArgs.h"
 #include <Plast.h>
 #include <rct/Process.h>
 #include <rct/ThreadPool.h>
@@ -57,23 +58,65 @@ void Local::init()
                 return;
             job->mError = "Local compile pool returned error";
             job->mStatusChanged(job.get(), Job::Error);
+            Job::finish(job.get());
         });
 }
 
 void Local::post(const Job::SharedPtr& job)
 {
     error() << "local post";
-    List<String> args = job->args();
-    const Path cmd = plast::resolveCompiler(args.front());
+    std::shared_ptr<CompilerArgs> args = job->compilerArgs();
+    List<String> cmdline = args->commandLine;
+    const Path cmd = plast::resolveCompiler(cmdline.front());
     if (cmd.isEmpty()) {
-        error() << "Unable to resolve compiler" << args.front();
+        error() << "Unable to resolve compiler" << cmdline.front();
         job->mError = "Unable to resolve compiler for Local post";
         job->mStatusChanged(job.get(), Job::Error);
         return;
     }
-    error() << "Compiler resolved to" << cmd;
-    args.removeFirst();
-    const ProcessPool::Id id = mPool.prepare(job->path(), cmd, args);
+
+    if (job->type() == Job::RemoteJob) {
+        assert(job->isPreprocessed());
+        assert(args->sourceFileIndexes.size() == 1);
+
+        String lang;
+        if (!(args->flags & CompilerArgs::HasDashX)) {
+            // need to add language, see if CompilerArgs already knows
+            if (args->flags & CompilerArgs::C) {
+                lang = "c";
+            } else if (args->flags & CompilerArgs::CPlusPlus) {
+                lang = "c++";
+            } else if (args->flags & CompilerArgs::ObjectiveC) {
+                lang = "objective-c";
+            } else if (args->flags & CompilerArgs::ObjectiveCPlusPlus) {
+                lang = "objective-c++";
+            } else {
+                error() << "Unknown language";
+                job->mError = "Unknown language for remote job";
+                job->mStatusChanged(job.get(), Job::Error);
+                return;
+            }
+        }
+
+        // hack the command line input argument to - and send stuff to stdin
+        cmdline[args->sourceFileIndexes[0]] = "-";
+
+        if (args->flags & CompilerArgs::HasDashO) {
+            cmdline[args->objectFileIndex] = "-";
+        } else {
+            cmdline.push_back("-o");
+            cmdline.push_back("-");
+        }
+
+        cmdline.removeFirst();
+        cmdline.prepend(lang);
+        cmdline.prepend("-x");
+    } else {
+        cmdline.removeFirst();
+    }
+
+    error() << "Compiler resolved to" << cmd << cmdline;
+    const ProcessPool::Id id = mPool.prepare(job->path(), cmd, cmdline, List<String>(), job->preprocessed());
     mJobs[id] = job;
     mPool.post(id);
 }

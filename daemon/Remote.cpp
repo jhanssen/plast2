@@ -19,6 +19,7 @@ void Remote::init()
                 client = server->nextConnection();
                 if (!client)
                     return;
+                error() << "remote client connected";
                 addClient(client);
             }
         });
@@ -52,15 +53,53 @@ void Remote::init()
 void Remote::handleJobMessage(const JobMessage::SharedPtr& msg, Connection* conn)
 {
     error() << "handle job message!";
+    // let's make a job out of this
+    Job::SharedPtr job = Job::create(msg->path(), msg->args(), Job::RemoteJob, msg->preprocessed());
+    job->statusChanged().connect([conn](Job* job, Job::Status status) {
+            error() << "remote job status changed" << job << status;
+            switch (status) {
+            case Job::Compiled:
+            case Job::Error:
+                error() << "remote job done, send message back";
+                break;
+            default:
+                break;
+            }
+        });
+    job->readyReadStdOut().connect([conn](Job* job) {
+            error() << "remote job ready stdout";
+        });
+    job->readyReadStdErr().connect([conn](Job* job) {
+            const String err = job->readAllStdErr();
+            error() << "remote job ready stderr" << err;
+        });
+    job->start();
 }
 
 void Remote::handleRequestJobsMessage(const RequestJobsMessage::SharedPtr& msg, Connection* conn)
 {
-    error() << "handle request jobs";
+    error() << "handle request jobs message";
+    // take count jobs
+    int rem = msg->count();
+    for (;;) {
+        if (mPending.empty())
+            break;
+        Job::SharedPtr job = mPending.front().lock();
+        mPending.removeFirst();
+        if (job) {
+            assert(job->isPreprocessed());
+            // send this job to remote;
+            error() << "sending job back";
+            conn->send(JobMessage(job->path(), job->args(), job->preprocessed()));
+            if (!--rem)
+                break;
+        }
+    }
 }
 
 void Remote::handleHasJobsMessage(const HasJobsMessage::SharedPtr& msg, Connection* conn)
 {
+    error() << "handle has jobs message";
     // assume we have room for the job for now, make a connection and ask for jobs
     Connection* remoteConn = 0;
     {
@@ -68,30 +107,36 @@ void Remote::handleHasJobsMessage(const HasJobsMessage::SharedPtr& msg, Connecti
         Map<Peer, Connection*>::const_iterator peer = mPeers.find(key);
         if (peer == mPeers.end()) {
             // make connection
-            Connection* conn = new Connection;
-            conn->newMessage().connect([this](const std::shared_ptr<Message>& msg, Connection* conn) {
-                });
-            auto onerror = [key](Connection* /*conn*/, Remote* remote) {
-                remote->mPeers.erase(key);
-            };
-            conn->error().connect([this, onerror](Connection* conn) { onerror(conn, this); });
-            conn->disconnected().connect([this, onerror](Connection* conn) { onerror(conn, this); });
-            conn->connectTcp(key.peer, key.port);
+            SocketClient::SharedPtr client = std::make_shared<SocketClient>();
+            client->connect(key.peer, key.port);
+            Connection* conn = addClient(client);
+
             mPeers.insert(key, conn);
             remoteConn = conn;
+
+            conn->send(HandshakeMessage(Daemon::instance()->options().localPort));
         } else {
             remoteConn = peer->second;
         }
     }
     assert(remoteConn);
     remoteConn->send(RequestJobsMessage(1));
-
-    error() << "handle has jobs message!";
 }
 
-void Remote::addClient(const SocketClient::SharedPtr& client)
+void Remote::handleHandshakeMessage(const HandshakeMessage::SharedPtr& msg, Connection* conn)
 {
-    error() << "client added";
+    const Peer key = { conn->client()->peerName(), msg->port() };
+    if (mPeers.contains(key)) {
+        // drop the connection
+        conn->finish();
+    } else {
+        mPeers[key] = conn;
+    }
+}
+
+Connection* Remote::addClient(const SocketClient::SharedPtr& client)
+{
+    error() << "remote client added";
     Connection* conn = new Connection(client);
     conn->newMessage().connect([this](const std::shared_ptr<Message>& msg, Connection* conn) {
             switch (msg->messageId()) {
@@ -100,6 +145,9 @@ void Remote::addClient(const SocketClient::SharedPtr& client)
                 break;
             case RequestJobsMessage::MessageId:
                 handleRequestJobsMessage(std::static_pointer_cast<RequestJobsMessage>(msg), conn);
+                break;
+            case HandshakeMessage::MessageId:
+                handleHandshakeMessage(std::static_pointer_cast<HandshakeMessage>(msg), conn);
                 break;
             default:
                 error() << "Unexpected message Remote::addClient" << msg->messageId();
@@ -111,6 +159,7 @@ void Remote::addClient(const SocketClient::SharedPtr& client)
             conn->disconnected().disconnect();
             EventLoop::deleteLater(conn);
         });
+    return conn;
 }
 
 void Remote::post(const Job::SharedPtr& job)

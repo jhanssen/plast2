@@ -69,8 +69,9 @@ struct CompilerArgs
         CPreprocessed = 0x04000,
         CPlusPlusPreprocessed = 0x08000,
         ObjectiveC = 0x10000,
-        AssemblerWithCpp = 0x20000,
-        Assembler = 0x40000,
+        ObjectiveCPlusPlus = 0x20000,
+        AssemblerWithCpp = 0x40000,
+        Assembler = 0x80000,
         LanguageMask = CPlusPlus|C|CPreprocessed|CPlusPlusPreprocessed|ObjectiveC|AssemblerWithCpp|Assembler
     };
     static const char *languageName(Flag flag);

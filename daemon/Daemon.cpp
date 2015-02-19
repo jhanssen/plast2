@@ -29,7 +29,7 @@ Daemon::~Daemon()
 void Daemon::handleJobMessage(const JobMessage::SharedPtr& msg, Connection* conn)
 {
     error() << "handling job message";
-    Job::SharedPtr job = Job::create(msg->path(), msg->args());
+    Job::SharedPtr job = Job::create(msg->path(), msg->args(), Job::LocalJob);
     job->statusChanged().connect([conn](Job* job, Job::Status status) {
             error() << "job status changed" << job << status;
             switch (status) {
@@ -58,7 +58,7 @@ void Daemon::handleJobMessage(const JobMessage::SharedPtr& msg, Connection* conn
 
 void Daemon::addClient(const SocketClient::SharedPtr& client)
 {
-    error() << "client added";
+    error() << "local client added";
     Connection* conn = new Connection(client);
     conn->newMessage().connect([this](const std::shared_ptr<Message>& msg, Connection* conn) {
             switch (msg->messageId()) {

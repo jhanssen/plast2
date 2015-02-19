@@ -15,11 +15,18 @@ public:
 
     enum { MessageId = plast::JobMessageId };
 
-    JobMessage() : Message(MessageId) {}
-    JobMessage(const Path& path, const List<String>& args) : Message(MessageId), mPath(path), mArgs(args) {}
+    JobMessage()
+        : Message(MessageId)
+    {
+    }
+    JobMessage(const Path& path, const List<String>& args, const String& pre = String())
+        : Message(MessageId), mPath(path), mArgs(args), mPreprocessed(pre)
+    {
+    }
 
     Path path() const { return mPath; }
     List<String> args() const { return mArgs; }
+    String preprocessed() const { return mPreprocessed; }
 
     virtual void encode(Serializer& serializer) const;
     virtual void decode(Deserializer& deserializer);
@@ -27,16 +34,17 @@ public:
 private:
     Path mPath;
     List<String> mArgs;
+    String mPreprocessed;
 };
 
 inline void JobMessage::encode(Serializer& serializer) const
 {
-    serializer << mPath << mArgs;
+    serializer << mPath << mArgs << mPreprocessed;
 }
 
 inline void JobMessage::decode(Deserializer& deserializer)
 {
-    deserializer >> mPath >> mArgs;
+    deserializer >> mPath >> mArgs >> mPreprocessed;
 }
 
 #endif

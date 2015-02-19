@@ -18,7 +18,9 @@ public:
 
     ~Job();
 
-    static SharedPtr create(const Path& path, const List<String>& args, const String& preprocessed = String());
+    enum Type { LocalJob, RemoteJob };
+
+    static SharedPtr create(const Path& path, const List<String>& args, Type type, const String& preprocessed = String());
 
     void start();
 
@@ -32,6 +34,7 @@ public:
     String preprocessed() const { return mPreprocessed; }
     List<String> args() const { return mArgs; }
     std::shared_ptr<CompilerArgs> compilerArgs() const { return mCompilerArgs; }
+    Type type() const { return mType; }
 
     String readAllStdOut();
     String readAllStdErr();
@@ -39,7 +42,7 @@ public:
     String error() const { return mError; }
 
 private:
-    Job(const Path& path, const List<String>& args, const String& preprocessed);
+    Job(const Path& path, const List<String>& args, Type type, const String& preprocessed);
 
     static void finish(Job* job);
 
@@ -52,6 +55,7 @@ private:
     Path mPath;
     String mPreprocessed;
     String mStdOut, mStdErr;
+    Type mType;
 
     static Hash<Job*, SharedPtr> sJobs;
 

@@ -59,15 +59,21 @@ bool ProcessPool::runProcess(Process*& proc, const Job& job, bool except)
         proc->setCwd(job.path);
     }
     const bool ok = proc->start(job.command, job.arguments, job.environ);
-    if (ok)
+    if (ok) {
+        if (!job.stdin.isEmpty()) {
+            proc->write(job.stdin);
+            proc->closeStdIn();
+        }
         mStarted(job.id, proc);
+    }
     return ok;
 }
 
-ProcessPool::Id ProcessPool::prepare(const Path& path, const Path &command, const List<String> &arguments, const List<String> &environ)
+ProcessPool::Id ProcessPool::prepare(const Path& path, const Path &command, const List<String> &arguments,
+                                     const List<String> &environ, const String& stdin)
 {
     const Id id = ++mNextId;
-    Job job = { id, path, command, arguments, environ };
+    Job job = { id, path, command, arguments, environ, stdin };
     mPrepared[id] = job;
     return id;
 }

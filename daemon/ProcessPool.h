@@ -23,7 +23,8 @@ public:
     Id prepare(const Path& path,
                const Path& command,
                const List<String>& arguments = List<String>(),
-               const List<String>& environ = List<String>());
+               const List<String>& environ = List<String>(),
+               const String& stdin = String());
     void post(Id id);
     void run(Id id);
 
@@ -41,6 +42,7 @@ private:
         Id id;
         Path path, command;
         List<String> arguments, environ;
+        String stdin;
     };
 
     bool runProcess(Process*& proc, const Job& job, bool except);

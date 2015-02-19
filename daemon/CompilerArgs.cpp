@@ -105,6 +105,7 @@ std::shared_ptr<CompilerArgs> CompilerArgs::create(const List<String> &args)
                         { "i", CPreprocessed },
                         { "ii", CPlusPlusPreprocessed },
                         { "m", ObjectiveC },
+                        { "mm", ObjectiveCPlusPlus },
                         { "S", Assembler },
                         { "s", AssemblerWithCpp },
                         { 0, None }

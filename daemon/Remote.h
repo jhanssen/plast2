@@ -22,10 +22,11 @@ public:
     void post(const Job::SharedPtr& job);
 
 private:
-    void addClient(const SocketClient::SharedPtr& client);
+    Connection* addClient(const SocketClient::SharedPtr& client);
     void handleJobMessage(const JobMessage::SharedPtr& msg, Connection* conn);
     void handleHasJobsMessage(const HasJobsMessage::SharedPtr& msg, Connection* conn);
     void handleRequestJobsMessage(const RequestJobsMessage::SharedPtr& msg, Connection* conn);
+    void handleHandshakeMessage(const HandshakeMessage::SharedPtr& msg, Connection* conn);
 
 private:
     SocketServer mServer;
@@ -34,7 +35,7 @@ private:
     unsigned int mNextId;
 
     List<Job::WeakPtr> mPending;
-    Hash<unsigned int, Job::WeakPtr> mPreprocessing, mBuidling;
+    Hash<unsigned int, Job::WeakPtr> mBuidling;
 
     struct Peer
     {
