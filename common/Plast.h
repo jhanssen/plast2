@@ -19,7 +19,8 @@ enum {
     HasJobsMessageId = 32,
     JobMessageId,
     RequestJobsMessageId,
-    HandshakeMessageId
+    HandshakeMessageId,
+    JobResponseMessageId
 };
 
 } // namespace plast

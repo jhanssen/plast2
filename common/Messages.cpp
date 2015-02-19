@@ -8,6 +8,7 @@ void init()
     Message::registerMessage<HasJobsMessage>();
     Message::registerMessage<RequestJobsMessage>();
     Message::registerMessage<HandshakeMessage>();
+    Message::registerMessage<JobResponseMessage>();
 }
 
 } // namespace messages
