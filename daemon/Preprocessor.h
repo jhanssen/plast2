@@ -22,10 +22,9 @@ private:
     ProcessPool mPool;
     struct Data
     {
-        Data() : hasError(false) {}
-        Data(const Job::SharedPtr& j) : hasError(false), job(j) {}
+        Data() {}
+        Data(const Job::SharedPtr& j) : job(j) {}
 
-        bool hasError;
         Job::WeakPtr job;
     };
     Hash<ProcessPool::Id, Data> mJobs;

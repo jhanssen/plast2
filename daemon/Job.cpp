@@ -69,6 +69,18 @@ String Job::readAllStdErr()
     return ret;
 }
 
+void Job::closeFile()
+{
+    if (mFileError) {
+        assert(!mFile);
+        return;
+    }
+    if (mFile) {
+        fclose(mFile);
+        mFile = 0;
+    }
+}
+
 void Job::appendFile(const String& data)
 {
     if (mFileError)

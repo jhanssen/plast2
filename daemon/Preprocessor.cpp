@@ -14,8 +14,11 @@ Preprocessor::Preprocessor()
         });
     mPool.readyReadStdErr().connect([this](ProcessPool::Id id, Process* proc) {
             // throw stderr data away, mark job as having errors
-            error() << proc->readAllStdErr();
-            mJobs[id].hasError = true;
+            Job::SharedPtr job = mJobs[id].job.lock();
+            if (!job)
+                return;
+            job->mStdErr += proc->readAllStdErr();
+            job->mReadyReadStdErr(job.get());
         });
     mPool.started().connect([this](ProcessPool::Id id, Process*) {
             Job::SharedPtr job = mJobs[id].job.lock();
@@ -28,8 +31,8 @@ Preprocessor::Preprocessor()
             assert(data != mJobs.end());
             Job::SharedPtr job = data->second.job.lock();
             if (job) {
-                if (data->second.hasError) {
-                    job->mError = "Got data on stderr for preprocess";
+                if (proc->returnCode() != 0) {
+                    job->mError = "Preprocess failed";
                     job->mStatusChanged(job.get(), Job::Error);
                 } else if (job->mPreprocessed.isEmpty()) {
                     job->mError = "Got no data from stdout for preprocess";

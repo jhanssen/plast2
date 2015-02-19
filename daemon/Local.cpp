@@ -42,9 +42,12 @@ void Local::init()
             mJobs.erase(id);
             if (!job)
                 return;
-            if (proc->returnCode() < 0) {
-                // this is bad
-                job->mError = "Invalid return code for local compile";
+            const int retcode = proc->returnCode();
+            if (retcode != 0) {
+                if (retcode < 0) {
+                    // this is bad
+                    job->mError = "Invalid return code for local compile";
+                }
                 job->mStatusChanged(job.get(), Job::Error);
             } else {
                 job->mStatusChanged(job.get(), Job::Compiled);
@@ -115,7 +118,7 @@ void Local::post(const Job::SharedPtr& job)
         cmdline.removeFirst();
     }
 
-    error() << "Compiler resolved to" << cmd << cmdline;
+    error() << "Compiler resolved to" << cmd << job->path() << cmdline;
     const ProcessPool::Id id = mPool.prepare(job->path(), cmd, cmdline, List<String>(), job->preprocessed());
     mJobs[id] = job;
     mPool.post(id);
@@ -132,8 +135,8 @@ void Local::run(const Job::SharedPtr& job)
         job->mStatusChanged(job.get(), Job::Error);
         return;
     }
-    error() << "Compiler resolved to" << cmd;
     args.removeFirst();
+    error() << "Compiler resolved to" << cmd << job->path() << args;
     const ProcessPool::Id id = mPool.prepare(job->path(), cmd, args);
     mJobs[id] = job;
     mPool.run(id);

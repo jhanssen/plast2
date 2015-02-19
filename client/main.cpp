@@ -23,5 +23,5 @@ int main(int argc, char** argv)
 
     loop->exec();
 
-    return 0;
+    return client.exitCode();
 }

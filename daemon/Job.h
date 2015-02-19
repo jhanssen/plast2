@@ -53,6 +53,7 @@ private:
         uintptr_t remoteId, const String& preprocessed);
 
     void appendFile(const String& data);
+    void closeFile();
 
     static void finish(Job* job);
 
