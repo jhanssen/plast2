@@ -7,6 +7,8 @@
 #include <rct/String.h>
 #include <rct/SignalSlot.h>
 #include <memory>
+#include <cstdint>
+#include <stdio.h>
 
 class CompilerArgs;
 
@@ -20,7 +22,9 @@ public:
 
     enum Type { LocalJob, RemoteJob };
 
-    static SharedPtr create(const Path& path, const List<String>& args, Type type, const String& preprocessed = String());
+    static SharedPtr create(const Path& path, const List<String>& args, Type type,
+                            uintptr_t remoteId = 0, const String& preprocessed = String());
+    static SharedPtr job(uintptr_t j);
 
     void start();
 
@@ -41,8 +45,14 @@ public:
 
     String error() const { return mError; }
 
+    uintptr_t id() const { return reinterpret_cast<uintptr_t>(this); }
+    uintptr_t remoteId() const { return mRemoteId; }
+
 private:
-    Job(const Path& path, const List<String>& args, Type type, const String& preprocessed);
+    Job(const Path& path, const List<String>& args, Type type,
+        uintptr_t remoteId, const String& preprocessed);
+
+    void appendFile(const String& data);
 
     static void finish(Job* job);
 
@@ -53,11 +63,14 @@ private:
     List<String> mArgs;
     std::shared_ptr<CompilerArgs> mCompilerArgs;
     Path mPath;
+    uintptr_t mRemoteId;
     String mPreprocessed;
     String mStdOut, mStdErr;
     Type mType;
+    FILE* mFile;
+    bool mFileError;
 
-    static Hash<Job*, SharedPtr> sJobs;
+    static Hash<uintptr_t, SharedPtr> sJobs;
 
     friend class Local;
     friend class Preprocessor;

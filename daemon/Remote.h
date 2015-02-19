@@ -27,6 +27,7 @@ private:
     void handleHasJobsMessage(const HasJobsMessage::SharedPtr& msg, Connection* conn);
     void handleRequestJobsMessage(const RequestJobsMessage::SharedPtr& msg, Connection* conn);
     void handleHandshakeMessage(const HandshakeMessage::SharedPtr& msg, Connection* conn);
+    void handleJobResponseMessage(const JobResponseMessage::SharedPtr& msg, Connection* conn);
 
 private:
     SocketServer mServer;
@@ -51,7 +52,8 @@ private:
             return port < other.port;
         }
     };
-    Map<Peer, Connection*> mPeers;
+    Map<Peer, Connection*> mPeersByKey;
+    Hash<Connection*, Peer> mPeersByConn;
 };
 
 #endif

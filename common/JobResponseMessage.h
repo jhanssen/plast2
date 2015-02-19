@@ -3,6 +3,7 @@
 
 #include <Plast.h>
 #include <rct/Message.h>
+#include <cstdint>
 
 class JobResponseMessage : public Message
 {
@@ -10,12 +11,16 @@ public:
     typedef std::shared_ptr<JobResponseMessage> SharedPtr;
 
     enum { MessageId = plast::JobResponseMessageId };
-    enum Mode { Stdout, Stderr };
+    enum Mode { Stdout, Stderr, Compiled, Error };
 
-    JobResponseMessage() : Message(MessageId), mMode(Stdout) {}
-    JobResponseMessage(Mode mode, const String& data) : Message(MessageId), mMode(mode), mData(data) {}
+    JobResponseMessage() : Message(MessageId), mMode(Stdout), mId(0) {}
+    JobResponseMessage(Mode mode, uintptr_t id, const String& data = String())
+        : Message(MessageId), mMode(mode), mId(id), mData(data)
+    {
+    }
 
     Mode mode() const { return mMode; }
+    uintptr_t id() const { return mId; }
     String data() const { return mData; }
 
     virtual void encode(Serializer& serializer) const;
@@ -23,18 +28,19 @@ public:
 
 private:
     Mode mMode;
+    uintptr_t mId;
     String mData;
 };
 
 inline void JobResponseMessage::encode(Serializer& serializer) const
 {
-    serializer << static_cast<int>(mMode) << mData;
+    serializer << static_cast<int>(mMode) << mId << mData;
 }
 
 inline void JobResponseMessage::decode(Deserializer& deserializer)
 {
     int mode;
-    deserializer >> mode >> mData;
+    deserializer >> mode >> mId >> mData;
     mMode = static_cast<Mode>(mode);
 }
 
