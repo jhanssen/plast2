@@ -192,6 +192,7 @@ void Remote::handleJobResponseMessage(const JobResponseMessage::SharedPtr& msg, 
     switch (status) {
     case Job::RemotePending:
         job->updateStatus(Job::RemoteReceiving);
+        // fall through
     case Job::RemoteReceiving:
         // accept the above statuses
         break;
