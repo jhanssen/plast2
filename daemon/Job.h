@@ -23,7 +23,7 @@ public:
     enum Type { LocalJob, RemoteJob };
 
     static SharedPtr create(const Path& path, const List<String>& args, Type type,
-                            uintptr_t remoteId = 0, const String& preprocessed = String());
+                            uintptr_t remoteId = 0, const String& preprocessed = String(), int serial = 0);
     static SharedPtr job(uintptr_t j);
 
     void start();
@@ -50,9 +50,12 @@ public:
     uintptr_t id() const { return reinterpret_cast<uintptr_t>(this); }
     uintptr_t remoteId() const { return mRemoteId; }
 
+    int serial() const { return mSerial; }
+    void increaseSerial() { mSerial += 1; }
+
 private:
     Job(const Path& path, const List<String>& args, Type type,
-        uintptr_t remoteId, const String& preprocessed);
+        uintptr_t remoteId, const String& preprocessed, int serial);
 
     void writeFile(const String& data);
     void updateStatus(Status status);
@@ -71,6 +74,7 @@ private:
     String mStdOut, mStdErr;
     Status mStatus;
     Type mType;
+    int mSerial;
 
     static Hash<uintptr_t, SharedPtr> sJobs;
 

@@ -54,15 +54,17 @@ void Remote::handleJobMessage(const JobMessage::SharedPtr& msg, Connection* conn
 {
     error() << "handle job message!";
     // let's make a job out of this
-    Job::SharedPtr job = Job::create(msg->path(), msg->args(), Job::RemoteJob, msg->id(), msg->preprocessed());
+    Job::SharedPtr job = Job::create(msg->path(), msg->args(), Job::RemoteJob, msg->id(), msg->preprocessed(), msg->serial());
     job->statusChanged().connect([conn](Job* job, Job::Status status) {
             error() << "remote job status changed" << job << status;
             switch (status) {
             case Job::Compiled:
-                conn->send(JobResponseMessage(JobResponseMessage::Compiled, job->remoteId(), job->objectCode()));
+                conn->send(JobResponseMessage(JobResponseMessage::Compiled, job->remoteId(),
+                                              job->serial(), job->objectCode()));
                 break;
             case Job::Error:
-                conn->send(JobResponseMessage(JobResponseMessage::Error, job->remoteId(), job->error()));
+                conn->send(JobResponseMessage(JobResponseMessage::Error, job->remoteId(),
+                                              job->serial(), job->error()));
                 break;
             default:
                 break;
@@ -71,12 +73,12 @@ void Remote::handleJobMessage(const JobMessage::SharedPtr& msg, Connection* conn
     job->readyReadStdOut().connect([conn](Job* job) {
             error() << "remote job ready stdout";
             conn->send(JobResponseMessage(JobResponseMessage::Stdout, job->remoteId(),
-                                          job->readAllStdOut()));
+                                          job->serial(), job->readAllStdOut()));
         });
     job->readyReadStdErr().connect([conn](Job* job) {
             error() << "remote job ready stderr";
             conn->send(JobResponseMessage(JobResponseMessage::Stderr, job->remoteId(),
-                                          job->readAllStdErr()));
+                                          job->serial(), job->readAllStdErr()));
         });
     job->start();
 }
@@ -101,7 +103,7 @@ void Remote::handleRequestJobsMessage(const RequestJobsMessage::SharedPtr& msg, 
             // send this job to remote;
             error() << "sending job back";
             job->updateStatus(Job::RemotePending);
-            conn->send(JobMessage(job->path(), job->args(), job->id(), job->preprocessed()));
+            conn->send(JobMessage(job->path(), job->args(), job->id(), job->preprocessed(), job->serial()));
             if (!--rem)
                 break;
         }
@@ -165,6 +167,11 @@ void Remote::handleJobResponseMessage(const JobResponseMessage::SharedPtr& msg, 
         break;
     default:
         error() << "job no longer remote compiling";
+        removeJob(job->id());
+        return;
+    }
+    if (msg->serial() != job->serial()) {
+        error() << "job serial doesn't match, rescheduled remote?";
         removeJob(job->id());
         return;
     }

@@ -6,8 +6,9 @@
 Hash<uintptr_t, Job::SharedPtr> Job::sJobs;
 
 Job::Job(const Path& path, const List<String>& args, Type type,
-         uintptr_t remoteId, const String& preprocessed)
-    : mArgs(args), mPath(path), mRemoteId(remoteId), mPreprocessed(preprocessed), mStatus(Idle), mType(type)
+         uintptr_t remoteId, const String& preprocessed, int serial)
+    : mArgs(args), mPath(path), mRemoteId(remoteId), mPreprocessed(preprocessed),
+      mStatus(Idle), mType(type), mSerial(serial)
 {
     mCompilerArgs = CompilerArgs::create(mArgs);
 }
@@ -17,9 +18,9 @@ Job::~Job()
 }
 
 Job::SharedPtr Job::create(const Path& path, const List<String>& args, Type type,
-                           uintptr_t remoteId, const String& preprocessed)
+                           uintptr_t remoteId, const String& preprocessed, int serial)
 {
-    Job::SharedPtr job(new Job(path, args, type, remoteId, preprocessed));
+    Job::SharedPtr job(new Job(path, args, type, remoteId, preprocessed, serial));
     sJobs[reinterpret_cast<uintptr_t>(job.get())] = job;
     return job;
 }
