@@ -160,14 +160,12 @@ void Remote::handleJobResponseMessage(const JobResponseMessage::SharedPtr& msg, 
         job->mReadyReadStdErr(job.get());
         break;
     case JobResponseMessage::Error:
-        job->closeFile();
         job->mError = msg->data();
         job->mStatusChanged(job.get(), Job::Error);
         Job::finish(job.get());
         break;
     case JobResponseMessage::Compiled:
-        job->appendFile(msg->data());
-        job->closeFile();
+        job->writeFile(msg->data());
         job->mStatusChanged(job.get(), Job::Compiled);
         Job::finish(job.get());
         break;

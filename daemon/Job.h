@@ -53,8 +53,7 @@ private:
     Job(const Path& path, const List<String>& args, Type type,
         uintptr_t remoteId, const String& preprocessed);
 
-    void appendFile(const String& data);
-    void closeFile();
+    void writeFile(const String& data);
 
     static void finish(Job* job);
 
@@ -69,8 +68,6 @@ private:
     String mPreprocessed, mObjectCode;
     String mStdOut, mStdErr;
     Type mType;
-    FILE* mFile;
-    bool mFileError;
 
     static Hash<uintptr_t, SharedPtr> sJobs;
 

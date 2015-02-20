@@ -7,17 +7,13 @@ Hash<uintptr_t, Job::SharedPtr> Job::sJobs;
 
 Job::Job(const Path& path, const List<String>& args, Type type,
          uintptr_t remoteId, const String& preprocessed)
-    : mArgs(args), mPath(path), mRemoteId(remoteId), mPreprocessed(preprocessed),
-      mType(type), mFile(0), mFileError(false)
+    : mArgs(args), mPath(path), mRemoteId(remoteId), mPreprocessed(preprocessed), mType(type)
 {
     mCompilerArgs = CompilerArgs::create(mArgs);
 }
 
 Job::~Job()
 {
-    if (mFile) {
-        fclose(mFile);
-    }
 }
 
 Job::SharedPtr Job::create(const Path& path, const List<String>& args, Type type,
@@ -69,47 +65,28 @@ String Job::readAllStdErr()
     return ret;
 }
 
-void Job::closeFile()
+void Job::writeFile(const String& data)
 {
-    if (mFileError) {
-        assert(!mFile);
+    // see if we can open
+    Path out = mCompilerArgs->output();
+    if (out.isEmpty()) {
+        mError = "Compiler output empty";
+        mStatusChanged(this, Error);
         return;
     }
-    if (mFile) {
-        fclose(mFile);
-        mFile = 0;
+    out = mPath.ensureTrailingSlash() + out;
+    FILE* file = fopen(out.constData(), "w");
+    if (!file) {
+        mError = "fopen failed";
+        mStatusChanged(this, Error);
+        return;
     }
-}
 
-void Job::appendFile(const String& data)
-{
-    if (mFileError)
-        return;
-    if (!mFile) {
-        // see if we can open
-        Path out = mCompilerArgs->output();
-        if (out.isEmpty()) {
-            mFileError = true;
-            mError = "Compiler output empty";
-            mStatusChanged(this, Error);
-            return;
-        }
-        out = mPath.ensureTrailingSlash() + out;
-        mFile = fopen(out.constData(), "w");
-        if (!mFile) {
-            mFileError = true;
-            mError = "fopen failed";
-            mStatusChanged(this, Error);
-            return;
-        }
-    }
-    const size_t w = fwrite(data.constData(), data.size(), 1, mFile);
+    const size_t w = fwrite(data.constData(), data.size(), 1, file);
     if (w != 1) {
         // bad
-        fclose(mFile);
-        mFile = 0;
-        mFileError = true;
         mError = "fwrite failed";
         mStatusChanged(this, Error);
     }
+    fclose(file);
 }
