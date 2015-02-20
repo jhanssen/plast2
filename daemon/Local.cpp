@@ -43,17 +43,24 @@ void Local::init()
             job->updateStatus(Job::Compiling);
         });
     mPool.finished().connect([this](ProcessPool::Id id, Process* proc) {
+            error() << "pool finished for" << id;
             const Data data = mJobs[id];
             const int fd = data.fd;
             const String fn = data.filename;
             Job::SharedPtr job = data.job.lock();
-            assert(fd != -1);
-            mJobs.erase(id);
-            FILE* f = fdopen(fd, "r");
-            assert(f);
+            const bool remote = !fn.isEmpty();
+            FILE* f = 0;
+            if (remote) {
+                assert(fd != -1);
+                mJobs.erase(id);
+                f = fdopen(fd, "r");
+                assert(f);
+            }
             if (!job) {
-                fclose(f);
-                unlink(fn.constData());
+                if (remote) {
+                    fclose(f);
+                    unlink(fn.constData());
+                }
                 return;
             }
             const int retcode = proc->returnCode();
@@ -64,36 +71,46 @@ void Local::init()
                 }
                 job->updateStatus(Job::Error);
             } else {
-                // read all the compiled data
-                f = freopen(fn.constData(), "r", f);
-                assert(f);
+                if (remote) {
+                    // read all the compiled data
+                    f = freopen(fn.constData(), "r", f);
+                    assert(f);
 
-                char buf[65536];
-                size_t r;
-                while (!feof(f) && !ferror(f)) {
-                    r = fread(buf, 1, sizeof(buf), f);
-                    if (r) {
-                        job->mObjectCode.append(buf, r);
+                    char buf[65536];
+                    size_t r;
+                    while (!feof(f) && !ferror(f)) {
+                        r = fread(buf, 1, sizeof(buf), f);
+                        if (r) {
+                            job->mObjectCode.append(buf, r);
+                        }
                     }
-                }
-                if (job->mObjectCode.isEmpty()) {
-                    job->mError = "Got no object code for compile";
-                    job->updateStatus(Job::Error);
+                    if (job->mObjectCode.isEmpty()) {
+                        job->mError = "Got no object code for compile";
+                        job->updateStatus(Job::Error);
+                    } else {
+                        job->updateStatus(Job::Compiled);
+                    }
                 } else {
                     job->updateStatus(Job::Compiled);
                 }
             }
-            fclose(f);
-            unlink(fn.constData());
+            if (remote) {
+                fclose(f);
+                unlink(fn.constData());
+            }
             Job::finish(job.get());
 
             takeRemoteJobs();
         });
     mPool.error().connect([this](ProcessPool::Id id) {
+            error() << "pool error for" << id;
             const Data& data = mJobs[id];
-            assert(data.fd != -1);
-            close(data.fd);
-            unlink(data.filename.constData());
+            const bool remote = !data.filename.isEmpty();
+            if (remote) {
+                assert(data.fd != -1);
+                close(data.fd);
+                unlink(data.filename.constData());
+            }
 
             mJobs.erase(id);
             Job::SharedPtr job = data.job.lock();

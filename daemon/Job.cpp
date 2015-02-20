@@ -22,7 +22,7 @@ Job::SharedPtr Job::create(const Path& path, const List<String>& args, Type type
                            uint64_t remoteId, const String& preprocessed, int serial)
 {
     Job::SharedPtr job(new Job(path, args, type, remoteId, preprocessed, serial));
-    sJobs[reinterpret_cast<uint64_t>(job.get())] = job;
+    sJobs[job->id()] = job;
     return job;
 }
 
