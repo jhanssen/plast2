@@ -7,7 +7,7 @@ Hash<uintptr_t, Job::SharedPtr> Job::sJobs;
 
 Job::Job(const Path& path, const List<String>& args, Type type,
          uintptr_t remoteId, const String& preprocessed)
-    : mArgs(args), mPath(path), mRemoteId(remoteId), mPreprocessed(preprocessed), mType(type)
+    : mArgs(args), mPath(path), mRemoteId(remoteId), mPreprocessed(preprocessed), mStatus(Idle), mType(type)
 {
     mCompilerArgs = CompilerArgs::create(mArgs);
 }
@@ -71,14 +71,14 @@ void Job::writeFile(const String& data)
     Path out = mCompilerArgs->output();
     if (out.isEmpty()) {
         mError = "Compiler output empty";
-        mStatusChanged(this, Error);
+        updateStatus(Error);
         return;
     }
     out = mPath.ensureTrailingSlash() + out;
     FILE* file = fopen(out.constData(), "w");
     if (!file) {
         mError = "fopen failed";
-        mStatusChanged(this, Error);
+        updateStatus(Error);
         return;
     }
 
@@ -86,7 +86,7 @@ void Job::writeFile(const String& data)
     if (w != 1) {
         // bad
         mError = "fwrite failed";
-        mStatusChanged(this, Error);
+        updateStatus(Error);
     }
     fclose(file);
 }

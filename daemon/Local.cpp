@@ -40,7 +40,7 @@ void Local::init()
             Job::SharedPtr job = data.job.lock();
             if (!job)
                 return;
-            job->mStatusChanged(job.get(), Job::Compiling);
+            job->updateStatus(Job::Compiling);
         });
     mPool.finished().connect([this](ProcessPool::Id id, Process* proc) {
             const Data data = mJobs[id];
@@ -62,7 +62,7 @@ void Local::init()
                     // this is bad
                     job->mError = "Invalid return code for local compile";
                 }
-                job->mStatusChanged(job.get(), Job::Error);
+                job->updateStatus(Job::Error);
             } else {
                 // read all the compiled data
                 f = freopen(fn.constData(), "r", f);
@@ -78,14 +78,16 @@ void Local::init()
                 }
                 if (job->mObjectCode.isEmpty()) {
                     job->mError = "Got no object code for compile";
-                    job->mStatusChanged(job.get(), Job::Error);
+                    job->updateStatus(Job::Error);
                 } else {
-                    job->mStatusChanged(job.get(), Job::Compiled);
+                    job->updateStatus(Job::Compiled);
                 }
             }
             fclose(f);
             unlink(fn.constData());
             Job::finish(job.get());
+
+            takeRemoteJobs();
         });
     mPool.error().connect([this](ProcessPool::Id id) {
             const Data& data = mJobs[id];
@@ -98,8 +100,10 @@ void Local::init()
             if (!job)
                 return;
             job->mError = "Local compile pool returned error";
-            job->mStatusChanged(job.get(), Job::Error);
+            job->updateStatus(Job::Error);
             Job::finish(job.get());
+
+            takeRemoteJobs();
         });
 }
 
@@ -112,7 +116,7 @@ void Local::post(const Job::SharedPtr& job)
     if (cmd.isEmpty()) {
         error() << "Unable to resolve compiler" << cmdline.front();
         job->mError = "Unable to resolve compiler for Local post";
-        job->mStatusChanged(job.get(), Job::Error);
+        job->updateStatus(Job::Error);
         return;
     }
 
@@ -127,7 +131,7 @@ void Local::post(const Job::SharedPtr& job)
         if (data.fd == -1) {
             // badness happened
             job->mError = "Unable to mkstemps preprocess file";
-            job->mStatusChanged(job.get(), Job::Error);
+            job->updateStatus(Job::Error);
             return;
         }
 
@@ -145,7 +149,7 @@ void Local::post(const Job::SharedPtr& job)
             } else {
                 error() << "Unknown language";
                 job->mError = "Unknown language for remote job";
-                job->mStatusChanged(job.get(), Job::Error);
+                job->updateStatus(Job::Error);
                 return;
             }
         }
@@ -181,7 +185,7 @@ void Local::run(const Job::SharedPtr& job)
     if (cmd.isEmpty()) {
         error() << "Unable to resolve compiler" << args.front();
         job->mError = "Unable to resolve compiler for Local post";
-        job->mStatusChanged(job.get(), Job::Error);
+        job->updateStatus(Job::Error);
         return;
     }
     args.removeFirst();
@@ -189,4 +193,16 @@ void Local::run(const Job::SharedPtr& job)
     const ProcessPool::Id id = mPool.prepare(job->path(), cmd, args);
     mJobs[id] = job;
     mPool.run(id);
+}
+
+void Local::takeRemoteJobs()
+{
+    for (;;) {
+        if (!mPool.isIdle())
+            break;
+        const Job::SharedPtr job = Daemon::instance()->remote().take();
+        if (!job)
+            break;
+        post(job);
+    }
 }

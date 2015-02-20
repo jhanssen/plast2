@@ -92,9 +92,15 @@ void Remote::handleRequestJobsMessage(const RequestJobsMessage::SharedPtr& msg, 
         Job::SharedPtr job = mPending.front().lock();
         mPending.removeFirst();
         if (job) {
+            // add job to building map
+            std::shared_ptr<Building> b = std::make_shared<Building>(Rct::monoMs(), job->id(), job);
+            mBuildingByTime[b->started] = b;
+            mBuildingById[b->jobid] = b;
+
             assert(job->isPreprocessed());
             // send this job to remote;
             error() << "sending job back";
+            job->updateStatus(Job::RemotePending);
             conn->send(JobMessage(job->path(), job->args(), job->id(), job->preprocessed()));
             if (!--rem)
                 break;
@@ -150,6 +156,18 @@ void Remote::handleJobResponseMessage(const JobResponseMessage::SharedPtr& msg, 
         error() << "job not found for response";
         return;
     }
+    const Job::Status status = job->status();
+    switch (status) {
+    case Job::RemotePending:
+        job->updateStatus(Job::RemoteReceiving);
+    case Job::RemoteReceiving:
+        // accept the above statuses
+        break;
+    default:
+        error() << "job no longer remote compiling";
+        removeJob(job->id());
+        return;
+    }
     switch (msg->mode()) {
     case JobResponseMessage::Stdout:
         job->mStdOut += msg->data();
@@ -160,16 +178,57 @@ void Remote::handleJobResponseMessage(const JobResponseMessage::SharedPtr& msg, 
         job->mReadyReadStdErr(job.get());
         break;
     case JobResponseMessage::Error:
+        removeJob(job->id());
         job->mError = msg->data();
-        job->mStatusChanged(job.get(), Job::Error);
+        job->updateStatus(Job::Error);
         Job::finish(job.get());
         break;
     case JobResponseMessage::Compiled:
+        removeJob(job->id());
         job->writeFile(msg->data());
-        job->mStatusChanged(job.get(), Job::Compiled);
+        job->updateStatus(Job::Compiled);
         Job::finish(job.get());
         break;
     }
+}
+
+void Remote::removeJob(uintptr_t id)
+{
+    Hash<uintptr_t, std::shared_ptr<Building> >::iterator idit = mBuildingById.find(id);
+    if (idit != mBuildingById.end())
+        return;
+    assert(idit->second.use_count() == 2);
+    Map<uint64_t, std::shared_ptr<Building> >::iterator tit = mBuildingByTime.lower_bound(idit->second->started);
+    assert(tit != mBuildingByTime.end());
+    mBuildingById.erase(idit);
+    while (tit->second->jobid != id) {
+        ++tit;
+        assert(tit != mBuildingByTime.end());
+    }
+    mBuildingByTime.erase(tit);
+}
+
+Job::SharedPtr Remote::take()
+{
+    // prefer jobs that are not sent out
+    while (!mPending.isEmpty()) {
+        Job::SharedPtr job = mPending.front().lock();
+        mPending.removeFirst();
+        if (job)
+            return job;
+    }
+    // take oldest pending jobs first
+    for (auto cand : mBuildingByTime) {
+        Job::SharedPtr job = cand.second->job.lock();
+        if (job && job->status() == Job::RemotePending) {
+            // we can take this job since we haven't received any data for it yet
+            job->updateStatus(Job::Idle);
+            const uintptr_t id = cand.second->jobid;
+            removeJob(id);
+            return job;
+        }
+    }
+    return Job::SharedPtr();
 }
 
 Connection* Remote::addClient(const SocketClient::SharedPtr& client)

@@ -27,7 +27,7 @@ Preprocessor::Preprocessor()
             Job::SharedPtr job = mJobs[id].job.lock();
             if (!job)
                 return;
-            job->mStatusChanged(job.get(), Job::Preprocessing);
+            job->updateStatus(Job::Preprocessing);
         });
     mPool.finished().connect([this](ProcessPool::Id id, Process* proc) {
             Hash<ProcessPool::Id, Data>::iterator data = mJobs.find(id);
@@ -40,7 +40,7 @@ Preprocessor::Preprocessor()
             if (job) {
                 if (proc->returnCode() != 0) {
                     job->mError = "Preprocess failed";
-                    job->mStatusChanged(job.get(), Job::Error);
+                    job->updateStatus(Job::Error);
                 } else {
                     // read all the preprocessed data
                     f = freopen(data->second.filename.constData(), "r", f);
@@ -56,9 +56,9 @@ Preprocessor::Preprocessor()
                     }
                     if (job->mPreprocessed.isEmpty()) {
                         job->mError = "Got no data from stdout for preprocess";
-                        job->mStatusChanged(job.get(), Job::Error);
+                        job->updateStatus(Job::Error);
                     } else {
-                        job->mStatusChanged(job.get(), Job::Preprocessed);
+                        job->updateStatus(Job::Preprocessed);
                     }
                 }
             }
@@ -77,7 +77,7 @@ Preprocessor::Preprocessor()
             Job::SharedPtr job = data->second.job.lock();
             if (job) {
                 job->mError = "Unable to start job for preprocess";
-                job->mStatusChanged(job.get(), Job::Error);
+                job->updateStatus(Job::Error);
             }
             mJobs.erase(data);
         });
@@ -95,7 +95,7 @@ void Preprocessor::preprocess(const Job::SharedPtr& job)
     if (data.fd == -1) {
         // badness happened
         job->mError = "Unable to mkstemps preprocess file";
-        job->mStatusChanged(job.get(), Job::Error);
+        job->updateStatus(Job::Error);
         return;
     }
 

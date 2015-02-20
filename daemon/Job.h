@@ -28,11 +28,12 @@ public:
 
     void start();
 
-    enum Status { Preprocessing, Preprocessed, Compiling, Compiled, Error };
+    enum Status { Idle, Preprocessing, Preprocessed, RemotePending, RemoteReceiving, Compiling, Compiled, Error };
     Signal<std::function<void(Job*, Status)> >& statusChanged() { return mStatusChanged; }
     Signal<std::function<void(Job*)> >& readyReadStdOut() { return mReadyReadStdOut; }
     Signal<std::function<void(Job*)> >& readyReadStdErr() { return mReadyReadStdErr; }
 
+    Status status() const { return mStatus; }
     bool isPreprocessed() const { return !mPreprocessed.isEmpty(); }
     Path path() const { return mPath; }
     String preprocessed() const { return mPreprocessed; }
@@ -54,6 +55,7 @@ private:
         uintptr_t remoteId, const String& preprocessed);
 
     void writeFile(const String& data);
+    void updateStatus(Status status);
 
     static void finish(Job* job);
 
@@ -67,6 +69,7 @@ private:
     uintptr_t mRemoteId;
     String mPreprocessed, mObjectCode;
     String mStdOut, mStdErr;
+    Status mStatus;
     Type mType;
 
     static Hash<uintptr_t, SharedPtr> sJobs;
@@ -75,5 +78,11 @@ private:
     friend class Preprocessor;
     friend class Remote;
 };
+
+inline void Job::updateStatus(Status status)
+{
+    mStatus = status;
+    mStatusChanged(this, status);
+}
 
 #endif

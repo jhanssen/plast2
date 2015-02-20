@@ -18,6 +18,9 @@ public:
     void run(const Job::SharedPtr& job);
 
 private:
+    void takeRemoteJobs();
+
+private:
     ProcessPool mPool;
     struct Data
     {
