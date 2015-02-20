@@ -63,14 +63,19 @@ void Remote::init()
                     break;
                 // reschedule
                 Job::SharedPtr job = it->second->job.lock();
-                mBuildingById.erase(it->second->jobid);
-                mBuildingByTime.erase(it);
                 if (job) {
+                    if (job->status() != Job::RemotePending) {
+                        // can only reschedule remotepending jobs
+                        ++it;
+                        continue;
+                    }
                     error() << "rescheduling" << job->id() << "now" << now << "started" << started;
                     job->updateStatus(Job::Idle);
                     job->increaseSerial();
                     job->start();
                 }
+                mBuildingById.erase(it->second->jobid);
+                mBuildingByTime.erase(it++);
             }
         });
 }
