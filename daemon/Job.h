@@ -23,8 +23,8 @@ public:
     enum Type { LocalJob, RemoteJob };
 
     static SharedPtr create(const Path& path, const List<String>& args, Type type,
-                            uintptr_t remoteId = 0, const String& preprocessed = String(), int serial = 0);
-    static SharedPtr job(uintptr_t j);
+                            uint64_t remoteId = 0, const String& preprocessed = String(), int serial = 0);
+    static SharedPtr job(uint64_t j);
 
     void start();
 
@@ -47,15 +47,15 @@ public:
 
     String error() const { return mError; }
 
-    uintptr_t id() const { return reinterpret_cast<uintptr_t>(this); }
-    uintptr_t remoteId() const { return mRemoteId; }
+    uint64_t id() const { return mId; }
+    uint64_t remoteId() const { return mRemoteId; }
 
     int serial() const { return mSerial; }
     void increaseSerial() { mSerial += 1; }
 
 private:
     Job(const Path& path, const List<String>& args, Type type,
-        uintptr_t remoteId, const String& preprocessed, int serial);
+        uint64_t remoteId, const String& preprocessed, int serial);
 
     void writeFile(const String& data);
     void updateStatus(Status status);
@@ -69,14 +69,16 @@ private:
     List<String> mArgs;
     std::shared_ptr<CompilerArgs> mCompilerArgs;
     Path mPath;
-    uintptr_t mRemoteId;
+    uint64_t mRemoteId;
     String mPreprocessed, mObjectCode;
     String mStdOut, mStdErr;
     Status mStatus;
     Type mType;
     int mSerial;
+    uint64_t mId;
 
-    static Hash<uintptr_t, SharedPtr> sJobs;
+    static Hash<uint64_t, SharedPtr> sJobs;
+    static uint64_t sNextId;
 
     friend class Local;
     friend class Preprocessor;

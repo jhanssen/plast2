@@ -232,9 +232,9 @@ void Remote::handleJobResponseMessage(const JobResponseMessage::SharedPtr& msg, 
     }
 }
 
-void Remote::removeJob(uintptr_t id)
+void Remote::removeJob(uint64_t id)
 {
-    Hash<uintptr_t, std::shared_ptr<Building> >::iterator idit = mBuildingById.find(id);
+    Hash<uint64_t, std::shared_ptr<Building> >::iterator idit = mBuildingById.find(id);
     if (idit != mBuildingById.end())
         return;
     assert(idit->second.use_count() == 2);
@@ -264,7 +264,7 @@ Job::SharedPtr Remote::take()
             // we can take this job since we haven't received any data for it yet
             job->increaseSerial();
             job->updateStatus(Job::Idle);
-            const uintptr_t id = cand.second->jobid;
+            const uint64_t id = cand.second->jobid;
             removeJob(id);
             return job;
         }

@@ -20,7 +20,7 @@ public:
         : Message(MessageId), mId(0), mSerial(0)
     {
     }
-    JobMessage(const Path& path, const List<String>& args, uintptr_t id = 0,
+    JobMessage(const Path& path, const List<String>& args, uint64_t id = 0,
                const String& pre = String(), int serial = 0)
         : Message(MessageId), mPath(path), mArgs(args), mId(id),
           mPreprocessed(pre), mSerial(serial)
@@ -30,7 +30,7 @@ public:
     Path path() const { return mPath; }
     List<String> args() const { return mArgs; }
     String preprocessed() const { return mPreprocessed; }
-    uintptr_t id() const { return mId; }
+    uint64_t id() const { return mId; }
     int serial() const { return mSerial; }
 
     virtual void encode(Serializer& serializer) const;
@@ -39,7 +39,7 @@ public:
 private:
     Path mPath;
     List<String> mArgs;
-    uintptr_t mId;
+    uint64_t mId;
     String mPreprocessed;
     int mSerial;
 };

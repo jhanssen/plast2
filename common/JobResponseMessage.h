@@ -14,13 +14,13 @@ public:
     enum Mode { Stdout, Stderr, Compiled, Error };
 
     JobResponseMessage() : Message(MessageId), mMode(Stdout), mId(0), mSerial(0) {}
-    JobResponseMessage(Mode mode, uintptr_t id, int serial, const String& data = String())
+    JobResponseMessage(Mode mode, uint64_t id, int serial, const String& data = String())
         : Message(MessageId), mMode(mode), mId(id), mSerial(serial), mData(data)
     {
     }
 
     Mode mode() const { return mMode; }
-    uintptr_t id() const { return mId; }
+    uint64_t id() const { return mId; }
     String data() const { return mData; }
     int serial() const { return mSerial; }
 
@@ -29,7 +29,7 @@ public:
 
 private:
     Mode mMode;
-    uintptr_t mId;
+    uint64_t mId;
     int mSerial;
     String mData;
 };

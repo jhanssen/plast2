@@ -32,7 +32,7 @@ private:
     void handleRequestJobsMessage(const RequestJobsMessage::SharedPtr& msg, Connection* conn);
     void handleHandshakeMessage(const HandshakeMessage::SharedPtr& msg, Connection* conn);
     void handleJobResponseMessage(const JobResponseMessage::SharedPtr& msg, Connection* conn);
-    void removeJob(uintptr_t id);
+    void removeJob(uint64_t id);
 
 private:
     SocketServer mServer;
@@ -48,17 +48,17 @@ private:
             : started(0), jobid(0)
         {
         }
-        Building(uint64_t s, uintptr_t id, const Job::SharedPtr& j)
+        Building(uint64_t s, uint64_t id, const Job::SharedPtr& j)
             : started(s), jobid(id), job(j)
         {
         }
 
         uint64_t started;
-        uintptr_t jobid;
+        uint64_t jobid;
         Job::WeakPtr job;
     };
     Map<uint64_t, std::shared_ptr<Building> > mBuildingByTime;
-    Hash<uintptr_t, std::shared_ptr<Building> > mBuildingById;
+    Hash<uint64_t, std::shared_ptr<Building> > mBuildingById;
 
     struct Peer
     {

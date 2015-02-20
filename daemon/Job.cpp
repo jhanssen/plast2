@@ -3,12 +3,13 @@
 #include "Local.h"
 #include "Daemon.h"
 
-Hash<uintptr_t, Job::SharedPtr> Job::sJobs;
+Hash<uint64_t, Job::SharedPtr> Job::sJobs;
+uint64_t Job::sNextId = 0;
 
 Job::Job(const Path& path, const List<String>& args, Type type,
-         uintptr_t remoteId, const String& preprocessed, int serial)
+         uint64_t remoteId, const String& preprocessed, int serial)
     : mArgs(args), mPath(path), mRemoteId(remoteId), mPreprocessed(preprocessed),
-      mStatus(Idle), mType(type), mSerial(serial)
+      mStatus(Idle), mType(type), mSerial(serial), mId(++sNextId)
 {
     mCompilerArgs = CompilerArgs::create(mArgs);
 }
@@ -18,16 +19,16 @@ Job::~Job()
 }
 
 Job::SharedPtr Job::create(const Path& path, const List<String>& args, Type type,
-                           uintptr_t remoteId, const String& preprocessed, int serial)
+                           uint64_t remoteId, const String& preprocessed, int serial)
 {
     Job::SharedPtr job(new Job(path, args, type, remoteId, preprocessed, serial));
-    sJobs[reinterpret_cast<uintptr_t>(job.get())] = job;
+    sJobs[reinterpret_cast<uint64_t>(job.get())] = job;
     return job;
 }
 
-Job::SharedPtr Job::job(uintptr_t id)
+Job::SharedPtr Job::job(uint64_t id)
 {
-    Hash<uintptr_t, Job::SharedPtr>::const_iterator it = sJobs.find(id);
+    Hash<uint64_t, Job::SharedPtr>::const_iterator it = sJobs.find(id);
     if (it == sJobs.end())
         return SharedPtr();
     return it->second;
@@ -49,7 +50,7 @@ void Job::start()
 
 void Job::finish(Job* job)
 {
-    sJobs.erase(reinterpret_cast<uintptr_t>(job));
+    sJobs.erase(reinterpret_cast<uint64_t>(job));
 }
 
 String Job::readAllStdOut()
