@@ -206,7 +206,6 @@ void Remote::handleJobResponseMessage(const JobResponseMessage::SharedPtr& msg, 
     }
     if (msg->serial() != job->serial()) {
         error() << "job serial doesn't match, rescheduled remote?";
-        removeJob(job->id());
         return;
     }
     switch (msg->mode()) {
