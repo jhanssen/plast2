@@ -77,6 +77,9 @@ void Remote::init()
                 mBuildingById.erase(it->second->jobid);
                 mBuildingByTime.erase(it++);
             }
+            if (!mPending.isEmpty()) {
+                mConnection.send(HasJobsMessage(mPending.size(), Daemon::instance()->options().localPort));
+            }
         });
 }
 
