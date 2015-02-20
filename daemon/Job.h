@@ -36,6 +36,7 @@ public:
     bool isPreprocessed() const { return !mPreprocessed.isEmpty(); }
     Path path() const { return mPath; }
     String preprocessed() const { return mPreprocessed; }
+    String objectCode() const { return mObjectCode; }
     List<String> args() const { return mArgs; }
     std::shared_ptr<CompilerArgs> compilerArgs() const { return mCompilerArgs; }
     Type type() const { return mType; }
@@ -65,7 +66,7 @@ private:
     std::shared_ptr<CompilerArgs> mCompilerArgs;
     Path mPath;
     uintptr_t mRemoteId;
-    String mPreprocessed;
+    String mPreprocessed, mObjectCode;
     String mStdOut, mStdErr;
     Type mType;
     FILE* mFile;

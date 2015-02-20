@@ -59,7 +59,7 @@ void Remote::handleJobMessage(const JobMessage::SharedPtr& msg, Connection* conn
             error() << "remote job status changed" << job << status;
             switch (status) {
             case Job::Compiled:
-                conn->send(JobResponseMessage(JobResponseMessage::Compiled, job->remoteId()));
+                conn->send(JobResponseMessage(JobResponseMessage::Compiled, job->remoteId(), job->objectCode()));
                 break;
             case Job::Error:
                 conn->send(JobResponseMessage(JobResponseMessage::Error, job->remoteId(), job->error()));
@@ -152,7 +152,8 @@ void Remote::handleJobResponseMessage(const JobResponseMessage::SharedPtr& msg, 
     }
     switch (msg->mode()) {
     case JobResponseMessage::Stdout:
-        job->appendFile(msg->data());
+        job->mStdOut += msg->data();
+        job->mReadyReadStdOut(job.get());
         break;
     case JobResponseMessage::Stderr:
         job->mStdErr += msg->data();
@@ -165,6 +166,7 @@ void Remote::handleJobResponseMessage(const JobResponseMessage::SharedPtr& msg, 
         Job::finish(job.get());
         break;
     case JobResponseMessage::Compiled:
+        job->appendFile(msg->data());
         job->closeFile();
         job->mStatusChanged(job.get(), Job::Compiled);
         Job::finish(job.get());

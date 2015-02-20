@@ -19,7 +19,16 @@ public:
 
 private:
     ProcessPool mPool;
-    Hash<ProcessPool::Id, Job::WeakPtr> mJobs;
+    struct Data
+    {
+        Data() : fd(-1) {}
+        Data(const Job::SharedPtr& j) : fd(-1), job(j) {}
+
+        int fd;
+        String filename;
+        Job::WeakPtr job;
+    };
+    Hash<ProcessPool::Id, Data> mJobs;
 };
 
 #endif

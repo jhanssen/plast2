@@ -5,6 +5,8 @@
 #include <rct/Process.h>
 #include <rct/ThreadPool.h>
 #include <rct/Log.h>
+#include <unistd.h>
+#include <stdio.h>
 
 Local::Local()
 {
@@ -18,30 +20,42 @@ void Local::init()
 {
     mPool.setCount(Daemon::instance()->options().jobCount);
     mPool.readyReadStdOut().connect([this](ProcessPool::Id id, Process* proc) {
-            Job::SharedPtr job = mJobs[id].lock();
+            const Data& data = mJobs[id];
+            Job::SharedPtr job = data.job.lock();
             if (!job)
                 return;
             job->mStdOut += proc->readAllStdOut();
             job->mReadyReadStdOut(job.get());
         });
     mPool.readyReadStdErr().connect([this](ProcessPool::Id id, Process* proc) {
-            Job::SharedPtr job = mJobs[id].lock();
+            const Data& data = mJobs[id];
+            Job::SharedPtr job = data.job.lock();
             if (!job)
                 return;
             job->mStdErr += proc->readAllStdErr();
             job->mReadyReadStdErr(job.get());
         });
     mPool.started().connect([this](ProcessPool::Id id, Process*) {
-            Job::SharedPtr job = mJobs[id].lock();
+            const Data& data = mJobs[id];
+            Job::SharedPtr job = data.job.lock();
             if (!job)
                 return;
             job->mStatusChanged(job.get(), Job::Compiling);
         });
     mPool.finished().connect([this](ProcessPool::Id id, Process* proc) {
-            Job::SharedPtr job = mJobs[id].lock();
+            const Data data = mJobs[id];
+            const int fd = data.fd;
+            const String fn = data.filename;
+            Job::SharedPtr job = data.job.lock();
+            assert(fd != -1);
             mJobs.erase(id);
-            if (!job)
+            FILE* f = fdopen(fd, "r");
+            assert(f);
+            if (!job) {
+                fclose(f);
+                unlink(fn.constData());
                 return;
+            }
             const int retcode = proc->returnCode();
             if (retcode != 0) {
                 if (retcode < 0) {
@@ -50,13 +64,36 @@ void Local::init()
                 }
                 job->mStatusChanged(job.get(), Job::Error);
             } else {
-                job->mStatusChanged(job.get(), Job::Compiled);
+                // read all the preprocessed data
+                f = freopen(fn.constData(), "r", f);
+
+                char buf[65536];
+                size_t r;
+                while (!feof(f) && !ferror(f)) {
+                    r = fread(buf, 1, sizeof(buf), f);
+                    if (r) {
+                        job->mObjectCode.append(buf, r);
+                    }
+                }
+                if (job->mObjectCode.isEmpty()) {
+                    job->mError = "Got no object code for compile";
+                    job->mStatusChanged(job.get(), Job::Error);
+                } else {
+                    job->mStatusChanged(job.get(), Job::Compiled);
+                }
             }
+            fclose(f);
+            unlink(fn.constData());
             Job::finish(job.get());
         });
     mPool.error().connect([this](ProcessPool::Id id) {
-            Job::SharedPtr job = mJobs[id].lock();
+            const Data& data = mJobs[id];
+            assert(data.fd != -1);
+            close(data.fd);
+            unlink(data.filename.constData());
+
             mJobs.erase(id);
+            Job::SharedPtr job = data.job.lock();
             if (!job)
                 return;
             job->mError = "Local compile pool returned error";
@@ -78,9 +115,20 @@ void Local::post(const Job::SharedPtr& job)
         return;
     }
 
+    Data data(job);
+
     if (job->type() == Job::RemoteJob) {
         assert(job->isPreprocessed());
         assert(args->sourceFileIndexes.size() == 1);
+
+        data.filename = "/tmp/plastXXXXXXcmp";
+        data.fd = mkstemps(data.filename.data(), 3);
+        if (data.fd == -1) {
+            // badness happened
+            job->mError = "Unable to mkstemps preprocess file";
+            job->mStatusChanged(job.get(), Job::Error);
+            return;
+        }
 
         String lang;
         if (!(args->flags & CompilerArgs::HasDashX)) {
@@ -105,10 +153,10 @@ void Local::post(const Job::SharedPtr& job)
         cmdline[args->sourceFileIndexes[0]] = "-";
 
         if (args->flags & CompilerArgs::HasDashO) {
-            cmdline[args->objectFileIndex] = "-";
+            cmdline[args->objectFileIndex] = data.filename;
         } else {
             cmdline.push_back("-o");
-            cmdline.push_back("-");
+            cmdline.push_back(data.filename);
         }
 
         cmdline.removeFirst();
@@ -118,9 +166,9 @@ void Local::post(const Job::SharedPtr& job)
         cmdline.removeFirst();
     }
 
-    error() << "Compiler resolved to" << cmd << job->path() << cmdline;
+    error() << "Compiler resolved to" << cmd << job->path() << cmdline << data.filename;
     const ProcessPool::Id id = mPool.prepare(job->path(), cmd, cmdline, List<String>(), job->preprocessed());
-    mJobs[id] = job;
+    mJobs[id] = data;
     mPool.post(id);
 }
 
