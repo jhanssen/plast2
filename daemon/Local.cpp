@@ -48,16 +48,16 @@ void Local::init()
             const int fd = data.fd;
             const String fn = data.filename;
             Job::SharedPtr job = data.job.lock();
-            const bool remote = !fn.isEmpty();
+            const bool localForRemote = !fn.isEmpty();
             FILE* f = 0;
-            if (remote) {
+            if (localForRemote) {
                 assert(fd != -1);
                 mJobs.erase(id);
                 f = fdopen(fd, "r");
                 assert(f);
             }
             if (!job) {
-                if (remote) {
+                if (localForRemote) {
                     fclose(f);
                     unlink(fn.constData());
                 }
@@ -71,7 +71,7 @@ void Local::init()
                 }
                 job->updateStatus(Job::Error);
             } else {
-                if (remote) {
+                if (localForRemote) {
                     // read all the compiled data
                     f = freopen(fn.constData(), "r", f);
                     assert(f);
@@ -94,7 +94,7 @@ void Local::init()
                     job->updateStatus(Job::Compiled);
                 }
             }
-            if (remote) {
+            if (localForRemote) {
                 fclose(f);
                 unlink(fn.constData());
             }
@@ -105,8 +105,8 @@ void Local::init()
     mPool.error().connect([this](ProcessPool::Id id) {
             error() << "pool error for" << id;
             const Data& data = mJobs[id];
-            const bool remote = !data.filename.isEmpty();
-            if (remote) {
+            const bool localForRemote = !data.filename.isEmpty();
+            if (localForRemote) {
                 assert(data.fd != -1);
                 close(data.fd);
                 unlink(data.filename.constData());
