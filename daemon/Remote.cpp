@@ -68,6 +68,7 @@ void Remote::init()
                 if (job) {
                     error() << "rescheduling" << job->id() << "now" << now << "started" << started;
                     job->updateStatus(Job::Idle);
+                    job->increaseSerial();
                     job->start();
                 }
             }
