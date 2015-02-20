@@ -64,8 +64,9 @@ void Local::init()
                 }
                 job->mStatusChanged(job.get(), Job::Error);
             } else {
-                // read all the preprocessed data
+                // read all the compiled data
                 f = freopen(fn.constData(), "r", f);
+                assert(f);
 
                 char buf[65536];
                 size_t r;

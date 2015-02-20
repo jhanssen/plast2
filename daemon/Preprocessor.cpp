@@ -44,6 +44,7 @@ Preprocessor::Preprocessor()
                 } else {
                     // read all the preprocessed data
                     f = freopen(data->second.filename.constData(), "r", f);
+                    assert(f);
 
                     char buf[65536];
                     size_t r;
