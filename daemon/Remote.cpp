@@ -263,6 +263,7 @@ Job::SharedPtr Remote::take()
         Job::SharedPtr job = cand.second->job.lock();
         if (job && job->status() == Job::RemotePending) {
             // we can take this job since we haven't received any data for it yet
+            job->increaseSerial();
             job->updateStatus(Job::Idle);
             const uintptr_t id = cand.second->jobid;
             removeJob(id);
