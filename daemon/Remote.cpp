@@ -2,8 +2,11 @@
 #include "Daemon.h"
 #include <rct/Log.h>
 
+#define RESCHEDULETIMEOUT 15000
+#define RESCHEDULECHECK   5000
+
 Remote::Remote()
-    : mNextId(0)
+    : mNextId(0), mRescheduleTimer(RESCHEDULECHECK)
 {
 }
 
@@ -48,6 +51,26 @@ void Remote::init()
         error("Can't seem to connect to server");
         abort();
     }
+
+    mRescheduleTimer.timeout().connect([this](Timer*) {
+            const uint64_t now = Rct::monoMs();
+            // reschedule outstanding jobs only, local will get to pending jobs eventually
+#warning Should we reschedule pending remote jobs?
+            auto it = mBuildingByTime.begin();
+            while (it != mBuildingByTime.end()) {
+                if (now - it->first < RESCHEDULETIMEOUT)
+                    break;
+                // reschedule
+                Job::SharedPtr job = it->second->job.lock();
+                mBuildingById.erase(it->second->jobid);
+                mBuildingByTime.erase(it);
+                if (job) {
+                    error() << "rescheduling" << job->id();
+                    job->updateStatus(Job::Idle);
+                    job->start();
+                }
+            }
+        });
 }
 
 void Remote::handleJobMessage(const JobMessage::SharedPtr& msg, Connection* conn)

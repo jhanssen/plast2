@@ -9,6 +9,7 @@
 #include <rct/Connection.h>
 #include <rct/SocketClient.h>
 #include <rct/SocketServer.h>
+#include <rct/Timer.h>
 #include <Messages.h>
 #include <memory>
 #include <cstdint>
@@ -38,6 +39,7 @@ private:
     Connection mConnection;
     Preprocessor mPreprocessor;
     unsigned int mNextId;
+    Timer mRescheduleTimer;
 
     List<Job::WeakPtr> mPending;
     struct Building
