@@ -58,14 +58,15 @@ void Remote::init()
 #warning Should we reschedule pending remote jobs?
             auto it = mBuildingByTime.begin();
             while (it != mBuildingByTime.end()) {
-                if (now - it->first < RESCHEDULETIMEOUT)
+                const uint64_t started = it->first;
+                if (now - started < RESCHEDULETIMEOUT)
                     break;
                 // reschedule
                 Job::SharedPtr job = it->second->job.lock();
                 mBuildingById.erase(it->second->jobid);
                 mBuildingByTime.erase(it);
                 if (job) {
-                    error() << "rescheduling" << job->id();
+                    error() << "rescheduling" << job->id() << "now" << now << "started" << started;
                     job->updateStatus(Job::Idle);
                     job->start();
                 }
