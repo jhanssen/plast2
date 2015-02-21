@@ -22,6 +22,14 @@ Scheduler::Scheduler(const Options& opts)
     }
 
     mHttpServer.listen(8089);
+    mHttpServer.request().connect([](const HttpServer::Request::SharedPtr& req) {
+            error() << "got request" << req->protocol() << req->method() << req->path();
+            HttpServer::Response response(req->protocol(), 200);
+            response.headers().add("Content-Length", "4");
+            response.headers().add("Content-Type", "text/plain");
+            response.setBody("blah");
+            req->write(response);
+        });
 }
 
 Scheduler::~Scheduler()

@@ -43,7 +43,10 @@ public:
     {
     public:
         Response();
-        Response(Protocol proto, int status, const Headers& headers, const String& body = String());
+        Response(Protocol proto, int status, const Headers& headers = Headers(),
+                 const String& body = String());
+
+        Headers& headers();
 
         void setStatus(int status);
         void setHeaders(const Headers& headers);
@@ -79,6 +82,11 @@ public:
         typedef std::shared_ptr<Request> SharedPtr;
         typedef std::weak_ptr<Request> WeakPtr;
 
+        enum Method { Get, Post };
+        Method method() const { return mMethod; }
+        String path() const { return mPath; }
+        Protocol protocol() const { return mProtocol; }
+
         const Headers& headers() const { return mHeaders; }
         const Body& body() const { return mBody; }
         Body& body() { return mBody; }
@@ -86,9 +94,18 @@ public:
         void write(const Response& response);
 
     private:
-        Request(HttpServer* server, const SocketClient::SharedPtr& client, const Headers& headers);
+        bool parseStatus(const String& line);
+        bool parseMethod(const String& method);
+        bool parseHttp(const String& http);
+        bool parseHeader(const String& line);
+
+    private:
+        Request(HttpServer* server, const SocketClient::SharedPtr& client);
 
         SocketClient::WeakPtr mClient;
+        Protocol mProtocol;
+        Method mMethod;
+        String mPath;
         Headers mHeaders;
         Body mBody;
         HttpServer* mServer;
@@ -110,8 +127,21 @@ private:
         uint64_t id;
         uint64_t seq;
         SocketClient::SharedPtr client;
-        bool readingBody;
+
+        enum { ReadingStatus, ReadingHeaders, ReadingBody } state;
+
+        unsigned int currentPos;
+        LinkedList<Buffer>::iterator currentBuffer;
         LinkedList<Buffer> buffers;
+
+        Request::SharedPtr request;
+
+        bool readLine(String& data);
+        void discardRead();
+
+        bool readFrom(const LinkedList<Buffer>::iterator& startBuffer, unsigned int startPos,
+                      const LinkedList<Buffer>::iterator& endBuffer, unsigned int endPos,
+                      String& data);
     };
     Protocol mProtocol;
     uint64_t mNextId;
@@ -136,6 +166,11 @@ inline HttpServer::Response::Response(Protocol proto, int status,
                                       const Headers& headers, const String& body)
     : mProtocol(proto), mStatus(status), mHeaders(headers), mBody(body)
 {
+}
+
+inline HttpServer::Headers& HttpServer::Response::headers()
+{
+    return mHeaders;
 }
 
 inline void HttpServer::Response::setHeaders(const Headers& headers)

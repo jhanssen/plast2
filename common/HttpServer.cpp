@@ -1,5 +1,7 @@
 #include "HttpServer.h"
 #include <rct/Log.h>
+#include <string.h>
+#include <stdio.h>
 
 HttpServer::HttpServer()
     : mProtocol(Http10), mNextId(0)
@@ -21,134 +23,152 @@ HttpServer::~HttpServer()
 
 bool HttpServer::listen(uint16_t port, Protocol proto, Mode mode)
 {
-    mTcpServer.listen(port, mode);
     mProtocol = proto;
+    return mTcpServer.listen(port, mode);
 }
 
-static inline unsigned int bufferSize(const LinkedList<Buffer>& buffers)
+bool HttpServer::Data::readFrom(const LinkedList<Buffer>::iterator& startBuffer, unsigned int startPos,
+                                const LinkedList<Buffer>::iterator& endBuffer, unsigned int endPos,
+                                String& data)
 {
-    unsigned int sz = 0;
-    for (const Buffer& buffer: buffers) {
-        sz += buffer.size();
-    }
-    return sz;
-}
-
-static inline int bufferRead(LinkedList<Buffer>& buffers, char* out, unsigned int size)
-{
-    if (!size)
-        return 0;
-    unsigned int num = 0, rem = size, cur;
-    LinkedList<Buffer>::iterator it = buffers.begin();
-    while (it != buffers.end()) {
-        cur = std::min(it->size(), rem);
-        memcpy(out + num, it->data(), cur);
-        rem -= cur;
-        num += cur;
-        if (cur == it->size()) {
-            // we've read the entire buffer, remove it
-            it = buffers.erase(it);
+    LinkedList<Buffer>::const_iterator end = endBuffer;
+    ++end;
+    for (LinkedList<Buffer>::iterator it = startBuffer; it != end; ++it) {
+        unsigned int sz, pos;
+        if (it == startBuffer) {
+            if (it == endBuffer) {
+                sz = endPos - startPos;
+            } else {
+                sz = it->size() - endPos;
+            }
+            pos = startPos;
+        } else if (it == endBuffer) {
+            sz = endPos;
+            pos = 0;
         } else {
-            assert(!rem);
-            assert(it->size() > cur);
-            assert(cur > 0);
-            // we need to shrink & memmove the front buffer at this point
-            Buffer& front = *it;
-            memmove(front.data(), front.data() + cur, front.size() - cur);
-            front.resize(front.size() - cur);
+            sz = it->size();
+            pos = 0;
         }
-        if (!rem) {
-            assert(num == size);
-            return size;
-        }
-        assert(rem > 0);
+        data.resize(data.size() + sz);
+        char* buf = data.data() + data.size() - sz;
+        //::error() << "memcpy" << static_cast<void*>(buf) << it->data() + pos << sz;
+        memcpy(buf, it->data() + pos, sz);
     }
-    return num;
+    return true;
 }
 
-void HttpServer::makeRequest(const SocketClient::SharedPtr& client, const String& hstr)
+bool HttpServer::Data::readLine(String& data)
 {
-    Headers headers;
-    for (const String& h : hstr.split("\r\n")) {
-        const int eq = h.indexOf(':');
-        if (eq == -1)
-            continue;
-        headers.add(h.left(eq), h.mid(eq + 1).trimmed());
+    // find \r\n, the \r might be at the end of a buffer and the \n at the beginning of the next
+    data.clear();
+    if (currentBuffer == buffers.end())
+        return false;
+    bool lastr = false;
+    const auto startBuffer = currentBuffer;
+    const unsigned int startPos = currentPos;
+    for (;;) {
+        Buffer& buf = *currentBuffer;
+        //::error() << "balle" << startPos << buf.size();
+        assert(startPos < buf.size());
+        if (lastr) {
+            assert(currentPos == 0);
+            if (buf.data()[0] == '\n') {
+                ++currentPos;
+                const auto endBuffer = currentBuffer;
+                const unsigned int endPos = currentPos;
+                if (currentPos == buf.size()) {
+                    currentPos = 0;
+                    ++currentBuffer;
+                }
+                return readFrom(startBuffer, startPos, endBuffer, endPos, data);
+            }
+        }
+        for (; currentPos < buf.size() - 1; ++currentPos) {
+            if (buf.data()[currentPos] == '\r' && buf.data()[currentPos + 1] == '\n') {
+                currentPos += 2;
+                const auto endBuffer = currentBuffer;
+                const unsigned int endPos = currentPos;
+                if (currentPos == buf.size()) {
+                    currentPos = 0;
+                    ++currentBuffer;
+                }
+                //::error() << "reading from" << &*startBuffer << startPos << &*endBuffer << endPos;
+                return readFrom(startBuffer, startPos, endBuffer, endPos, data);
+            }
+        }
+        if (buf.data()[buf.size() - 1] == '\r')
+            lastr = true;
+        ++currentBuffer;
+        currentPos = 0;
+        if (currentBuffer == buffers.end()) {
+            // no luck, reset current to start and try again next time
+            currentBuffer = startBuffer;
+            currentPos = startPos;
+            return false;
+        }
     }
-    Request::SharedPtr req(new Request(this, client, headers));
-    mRequest(req);
+    assert(false);
+    return false;
+}
+
+void HttpServer::Data::discardRead()
+{
+    for (auto it = buffers.begin(); it != currentBuffer;) {
+        buffers.erase(it++);
+    }
+    if (currentBuffer == buffers.end() || currentPos == 0)
+        return;
+
+    // we need to shrink & memmove the front buffer at this point
+    assert(currentBuffer == buffers.begin());
+    Buffer& buf = *currentBuffer;
+    assert(currentPos < buf.size() - 1);
+    memmove(buf.data(), buf.data() + currentPos, buf.size() - currentPos);
+    buf.resize(buf.size() - currentPos);
+    currentPos = 0;
 }
 
 void HttpServer::addClient(const SocketClient::SharedPtr& client)
 {
     const uint64_t id = ++mNextId;
-    mData[id] = { id, 0, client, false };
+    mData[id] = { id, 0, client, Data::ReadingStatus, 0 };
     Data& data = mData[id];
+    data.currentBuffer = data.buffers.begin();
 
-    unsigned char nbuf[4] = { 0, 0, 0, 0 };
-    auto rnrn = [&nbuf](unsigned char c) -> bool {
-        memmove(nbuf, nbuf + 1, 3);
-        nbuf[3] = c;
-        return (nbuf[0] == '\r' && nbuf[1] == '\n' && nbuf[2] == '\r' && nbuf[3] == '\n');
-    };
-
-    client->readyRead().connect([this, &data, rnrn](const SocketClient::SharedPtr& c, Buffer&& buf) {
+    client->readyRead().connect([this, &data, id](const SocketClient::SharedPtr& c, Buffer&& buf) {
             if (!buf.isEmpty()) {
-                if (!data.readingBody) {
-                    bool done = false;
-                    if (!data.buffers.isEmpty()) {
-                        // if the end of the last buffer + the start of the new buffer is \r\n\r\n then we're done with headers
-                        const Buffer& last = data.buffers.back();
-                        const unsigned char* lastData = last.data();
-                        {
-                            int cnt = last.size();
-                            for (int i = std::min<int>(3, last.size()); i > 0; --i) {
-                                rnrn(lastData[last.size() - i]);
-                            }
+                data.buffers.push_back(std::move(buf));
+                if (data.currentBuffer == data.buffers.end()) {
+                    // set currentBuffer to be the buffer we just added
+                    --data.currentBuffer;
+                    data.currentPos = 0;
+                }
+                String line;
+                while (data.readLine(line)) {
+                    if (data.state == Data::ReadingStatus) {
+                        data.request.reset(new Request(this, data.client));
+                        if (!data.request->parseStatus(line)) {
+                            data.client->close();
+                            data.client.reset();
+                            mData.erase(id);
                         }
-                        for (int i = 0; i < 3; ++i) {
-                            if (rnrn(buf.data()[i])) {
-                                done = true;
-                                break;
-                            }
-                        }
-                        if (done) {
-                            // read everything
-                            String str;
-                            unsigned int sz = bufferSize(data.buffers);
-                            str.resize(sz + 1);
-                            str[sz] = '\n';
-                            bufferRead(data.buffers, str.data(), sz);
-                            makeRequest(c, str);
-
-                            // remove the first char of this buffer
-                            if (buf.size() > 1) {
-                                memmove(buf.data(), buf.data() + 1, buf.size() - 1);
-                                buf.resize(buf.size() - 1);
-                            } else {
-                                // we're done with the buffer
-                                return;
+                        data.state = Data::ReadingHeaders;
+                    } else if (data.state == Data::ReadingHeaders) {
+                        if (line.size() == 2) {
+                            // we're done
+                            assert(line[0] == '\r' && line[1] == '\n');
+                            mRequest(data.request);
+                            data.request.reset();
+                            data.discardRead();
+                            data.state = Data::ReadingBody;
+                        } else {
+                            if (!data.request->parseHeader(line)) {
+                                data.client->close();
+                                data.client.reset();
+                                mData.erase(id);
                             }
                         }
                     }
-                    if (!done) {
-                        // see if we can find \n\n in the buffer
-                        unsigned char* d = buf.data();
-                        for (unsigned int i = 0; i < buf.size() - 3; ++i) {
-                            if (d[i] == '\r' && d[i + 1] == '\n' && d[i + 2] == '\r' && d[i + 3] == '\n') {
-                                // yes, we're done here
-                                const unsigned int sz = bufferSize(data.buffers) + i + 2;
-                                data.buffers.push_back(std::move(buf));
-                                String str;
-                                str.resize(sz);
-                                bufferRead(data.buffers, str.data(), sz);
-                                makeRequest(c, str);
-#warning need to read the body here, should support content-length and chunked transfer encoding
-                                return;
-                            }
-                        }
-                    }
-                    data.buffers.push_back(std::move(buf));
                 }
             }
         });
@@ -183,10 +203,86 @@ List<String> HttpServer::Headers::values(const String& key) const
     return it->second;
 }
 
-HttpServer::Request::Request(HttpServer* server, const SocketClient::SharedPtr& client,
-                             const Headers& headers)
-    : mClient(client), mHeaders(headers), mBody(this), mServer(server)
+HttpServer::Request::Request(HttpServer* server, const SocketClient::SharedPtr& client)
+    : mClient(client), mProtocol(Http10), mMethod(Get), mBody(this), mServer(server)
 {
+}
+
+bool HttpServer::Request::parseMethod(const String& method)
+{
+    bool ret = false;
+    if (method == "GET") {
+        mMethod = Get;
+        ret = true;
+    } else if (method == "POST") {
+        mMethod = Post;
+        ret = true;
+    }
+    return ret;
+}
+
+bool HttpServer::Request::parseHttp(const String& http)
+{
+    unsigned int major, minor;
+#warning is this safe?
+    if (sscanf(http.constData(), "HTTP/%u.%u", &major, &minor) != 2) {
+        return false;
+    }
+    if (major != 1)
+        return false;
+    switch (minor) {
+    case 0:
+        mProtocol = Http10;
+        return true;
+    case 1:
+        mProtocol = Http11;
+        return true;
+    default:
+        break;
+    }
+    return false;
+}
+
+bool HttpServer::Request::parseStatus(const String& line)
+{
+    int prev = 0;
+    enum { ParseMethod, ParsePath, ParseHttp } parsing = ParseMethod;
+    const char* find[] = { " ", " ", "\r\n" };
+    for (;;) {
+        int sp = line.indexOf(find[parsing], prev);
+        if (sp == -1) {
+            return false;
+        }
+        const String part = line.mid(prev, sp - prev);
+        switch (parsing) {
+        case ParseMethod:
+            if (!parseMethod(part))
+                return false;
+            parsing = ParsePath;
+            break;
+        case ParsePath:
+            mPath = part;
+            parsing = ParseHttp;
+            break;
+        case ParseHttp:
+            if (!parseHttp(part))
+                return false;
+            return true;
+        }
+        prev = sp + 1;
+    }
+    return false;
+}
+
+bool HttpServer::Request::parseHeader(const String& line)
+{
+    const int eq = line.indexOf(':');
+    if (eq < 1)
+        return false;
+    const String key = line.left(eq);
+    const String val = line.mid(eq + 1).trimmed();
+    mHeaders.add(key, val);
+    return true;
 }
 
 static inline const char* statusText(int code)
