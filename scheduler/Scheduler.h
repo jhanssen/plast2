@@ -3,6 +3,7 @@
 
 #include "Peer.h"
 #include <Messages.h>
+#include <HttpServer.h>
 #include <rct/SocketClient.h>
 #include <rct/SocketServer.h>
 #include <rct/Set.h>
@@ -33,6 +34,7 @@ private:
 
 private:
     SocketServer mServer;
+    HttpServer mHttpServer;
     Set<Peer::SharedPtr> mPeers;
     Options mOpts;
 

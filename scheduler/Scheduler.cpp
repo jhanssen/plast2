@@ -20,6 +20,8 @@ Scheduler::Scheduler(const Options& opts)
         error() << "couldn't tcp listen";
         abort();
     }
+
+    mHttpServer.listen(8089);
 }
 
 Scheduler::~Scheduler()
