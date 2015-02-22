@@ -106,6 +106,8 @@ public:
 
         void write(const Response& response, Response::WriteMode mode = Response::Complete);
 
+        SocketClient::SharedPtr takeSocket();
+
     private:
         bool parseStatus(const String& line);
         bool parseMethod(const String& method);
@@ -135,6 +137,7 @@ private:
     void makeRequest(const SocketClient::SharedPtr& client, const String& headers);
 
     Data* data(uint64_t id);
+    void removeData(uint64_t id);
 
 private:
     struct Data

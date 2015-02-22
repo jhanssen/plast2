@@ -353,6 +353,14 @@ HttpServer::Data* HttpServer::data(uint64_t id)
     return &it->second;
 }
 
+void HttpServer::removeData(uint64_t id)
+{
+    auto it = mData.find(id);
+    if (it == mData.end())
+        return;
+    mData.erase(it);
+}
+
 void HttpServer::Headers::add(const String& key, const String& value)
 {
     mHeaders[key].push_back(value);
@@ -519,10 +527,8 @@ static inline const char* statusText(int code)
 void HttpServer::Request::write(const Response& response, Response::WriteMode mode)
 {
     Data* data = mServer->data(mId);
-    ::error() << "boof";
     if (!data)
         return;
-    ::error() << "wanting to write" << data->current << mSeq;
     if (mSeq == data->current) {
         // write right now
         data->write(response);
@@ -533,6 +539,21 @@ void HttpServer::Request::write(const Response& response, Response::WriteMode mo
     } else {
         data->enqueue(mSeq, response);
     }
+}
+
+SocketClient::SharedPtr HttpServer::Request::takeSocket()
+{
+    Data* data = mServer->data(mId);
+    if (!data)
+        return SocketClient::SharedPtr();
+    // can't take the socket if we have pending pipelined responses
+    assert(data->queue.isEmpty());
+
+    SocketClient::SharedPtr client = data->client;
+    client->readyRead().disconnect();
+    client->disconnected().disconnect();
+    mServer->removeData(mId);
+    return client;
 }
 
 void HttpServer::Data::write(const Response& response)
