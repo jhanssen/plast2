@@ -19,7 +19,8 @@ ExternalProject_Add(
   INSTALL_COMMAND make -C lib -j install
   )
 
-add_dependencies(scheduler rct common wslay)
+add_dependencies(common wslay)
+add_dependencies(scheduler rct common)
 add_dependencies(daemon rct common)
 add_dependencies(plastc rct common)
 

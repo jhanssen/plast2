@@ -1,4 +1,5 @@
 #include "Scheduler.h"
+#include <WebSocket.h>
 #include <rct/Log.h>
 
 Scheduler::WeakPtr Scheduler::sInstance;
