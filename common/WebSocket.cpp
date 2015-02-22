@@ -56,21 +56,6 @@ static inline String base64(const String& input)
     return result;
 }
 
-static const char* const hexLookup = "0123456789abcdef";
-
-static inline String hashToHex(const unsigned char digest[SHA_DIGEST_LENGTH])
-{
-    String out(SHA_DIGEST_LENGTH * 2, '\0');
-    const unsigned char* get = digest;
-    char* put = out.data();
-    const char* const end = out.data() + out.size();
-    for (; put != end; ++get) {
-        *(put++) = hexLookup[(*get >> 4) & 0xf];
-        *(put++) = hexLookup[*get & 0xf];
-    }
-    return out;
-}
-
 static inline String sha1(const String& input)
 {
     unsigned char digest[SHA_DIGEST_LENGTH];
