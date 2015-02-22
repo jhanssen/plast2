@@ -46,8 +46,8 @@ void Remote::init()
                 break;
             }
         });
-    mConnection.finished().connect(std::bind([](){ error() << "server finished connection"; abort(); }));
-    mConnection.disconnected().connect(std::bind([](){ error() << "server closed connection"; abort(); }));
+    mConnection.finished().connect(std::bind([](){ error() << "server finished connection"; EventLoop::eventLoop()->quit(); }));
+    mConnection.disconnected().connect(std::bind([](){ error() << "server closed connection"; EventLoop::eventLoop()->quit(); }));
     if (!mConnection.connectTcp(opts.serverHost, opts.serverPort)) {
         error("Can't seem to connect to server");
         abort();
