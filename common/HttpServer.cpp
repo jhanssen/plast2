@@ -516,7 +516,7 @@ static inline const char* statusText(int code)
     return "";
 }
 
-void HttpServer::Request::write(const Response& response, WriteMode mode)
+void HttpServer::Request::write(const Response& response, Response::WriteMode mode)
 {
     Data* data = mServer->data(mId);
     ::error() << "boof";
@@ -526,7 +526,7 @@ void HttpServer::Request::write(const Response& response, WriteMode mode)
     if (mSeq == data->current) {
         // write right now
         data->write(response);
-        if (mode == Complete) {
+        if (mode == Response::Complete) {
             ++data->current;
             data->writeQueued();
         }

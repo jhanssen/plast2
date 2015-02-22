@@ -49,6 +49,8 @@ public:
         Response(Protocol proto, int status, const Headers& headers = Headers(),
                  const String& body = String());
 
+        enum WriteMode { Incomplete, Complete };
+
         Headers& headers();
 
         void setStatus(int status);
@@ -102,8 +104,7 @@ public:
         const Body& body() const { return mBody; }
         Body& body() { return mBody; }
 
-        enum WriteMode { Incomplete, Complete };
-        void write(const Response& response, WriteMode mode = Complete);
+        void write(const Response& response, Response::WriteMode mode = Response::Complete);
 
     private:
         bool parseStatus(const String& line);
