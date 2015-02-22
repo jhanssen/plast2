@@ -64,16 +64,21 @@ public:
     class Body
     {
     public:
-        bool atEnd() const;
-        String read(int size = -1);
-        String readAll();
+        bool done() const;
+        String read();
+
+        Signal<std::function<void(Body*)> >& readyRead() { return mReadyRead; }
 
     private:
         Body(Request* req);
 
         Request* mRequest;
+        bool mDone;
+        String mBody;
+        Signal<std::function<void(Body*)> > mReadyRead;
 
         friend class Request;
+        friend class HttpServer;
     };
 
     class Request
@@ -81,6 +86,8 @@ public:
     public:
         typedef std::shared_ptr<Request> SharedPtr;
         typedef std::weak_ptr<Request> WeakPtr;
+
+        ~Request();
 
         enum Method { Get, Post };
         Method method() const { return mMethod; }
@@ -129,19 +136,23 @@ private:
         SocketClient::SharedPtr client;
 
         enum { ReadingStatus, ReadingHeaders, ReadingBody } state;
+        enum { ModeNone, ModeLength, ModeChunked } bodyMode;
+        int64_t bodyLength;
 
         unsigned int currentPos;
         LinkedList<Buffer>::iterator currentBuffer;
         LinkedList<Buffer> buffers;
+        String bodyData;
 
         Request::SharedPtr request;
 
         bool readLine(String& data);
+        bool read(String& data, unsigned int len, unsigned int discard = 0);
         void discardRead();
 
         bool readFrom(const LinkedList<Buffer>::iterator& startBuffer, unsigned int startPos,
                       const LinkedList<Buffer>::iterator& endBuffer, unsigned int endPos,
-                      String& data);
+                      String& data, unsigned int discard = 0);
     };
     Protocol mProtocol;
     uint64_t mNextId;
@@ -181,6 +192,23 @@ inline void HttpServer::Response::setHeaders(const Headers& headers)
 inline void HttpServer::Response::setBody(const String& body)
 {
     mBody = body;
+}
+
+inline HttpServer::Body::Body(Request* req)
+    : mRequest(req), mDone(false)
+{
+}
+
+inline bool HttpServer::Body::done() const
+{
+    return mDone;
+}
+
+inline String HttpServer::Body::read()
+{
+    String ret;
+    std::swap(ret, mBody);
+    return ret;
 }
 
 #endif

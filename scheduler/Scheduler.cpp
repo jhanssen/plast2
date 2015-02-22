@@ -24,11 +24,34 @@ Scheduler::Scheduler(const Options& opts)
     mHttpServer.listen(8089);
     mHttpServer.request().connect([](const HttpServer::Request::SharedPtr& req) {
             error() << "got request" << req->protocol() << req->method() << req->path();
-            HttpServer::Response response(req->protocol(), 200);
-            response.headers().add("Content-Length", "4");
-            response.headers().add("Content-Type", "text/plain");
-            response.setBody("blah");
-            req->write(response);
+            if (req->method() == HttpServer::Request::Post) {
+                if (req->headers().value("Expect") == "100-continue") {
+                    // send a 100 response
+                    error() << "sending a 100 response";
+                    HttpServer::Response response(req->protocol(), 100);
+                    req->write(response);
+                }
+                req->body().readyRead().connect([req](HttpServer::Body* body) {
+                        error() << "body data" << body->read();
+                        if (body->done()) {
+                            error() << "!DONE body";
+                            HttpServer::Response response(req->protocol(), 200);
+                            response.headers().add("Content-Length", "9");
+                            response.headers().add("Content-Type", "text/plain");
+                            response.headers().add("Connection", "keep-alive");
+                            response.setBody("blah body");
+                            req->write(response);
+                            req->body().readyRead().disconnect();
+                        }
+                    });
+            } else {
+                HttpServer::Response response(req->protocol(), 200);
+                response.headers().add("Content-Length", "4");
+                response.headers().add("Content-Type", "text/plain");
+                response.headers().add("Connection", "keep-alive");
+                response.setBody("blah");
+                req->write(response);
+            }
         });
 }
 

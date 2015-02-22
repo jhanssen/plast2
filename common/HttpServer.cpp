@@ -29,7 +29,7 @@ bool HttpServer::listen(uint16_t port, Protocol proto, Mode mode)
 
 bool HttpServer::Data::readFrom(const LinkedList<Buffer>::iterator& startBuffer, unsigned int startPos,
                                 const LinkedList<Buffer>::iterator& endBuffer, unsigned int endPos,
-                                String& data)
+                                String& data, unsigned int discard)
 {
     LinkedList<Buffer>::const_iterator end = endBuffer;
     ++end;
@@ -37,13 +37,13 @@ bool HttpServer::Data::readFrom(const LinkedList<Buffer>::iterator& startBuffer,
         unsigned int sz, pos;
         if (it == startBuffer) {
             if (it == endBuffer) {
-                sz = endPos - startPos;
+                sz = endPos - startPos - discard;
             } else {
                 sz = it->size() - endPos;
             }
             pos = startPos;
         } else if (it == endBuffer) {
-            sz = endPos;
+            sz = endPos - discard;
             pos = 0;
         } else {
             sz = it->size();
@@ -55,6 +55,38 @@ bool HttpServer::Data::readFrom(const LinkedList<Buffer>::iterator& startBuffer,
         memcpy(buf, it->data() + pos, sz);
     }
     return true;
+}
+
+bool HttpServer::Data::read(String& data, unsigned int len, unsigned int discard)
+{
+    data.clear();
+    if (currentBuffer == buffers.end())
+        return false;
+    const auto startBuffer = currentBuffer;
+    const unsigned int startPos = currentPos;
+    unsigned int total = 0, rem = len + discard;
+    do {
+        Buffer& buf = *currentBuffer;
+        assert(startPos < buf.size());
+        if (total + buf.size() >= len + discard) {
+            // we're done
+            currentPos += rem;
+            const auto endBuffer = currentBuffer;
+            const unsigned int endPos = currentPos;
+            if (currentPos == buf.size()) {
+                currentPos = 0;
+                ++currentBuffer;
+            }
+            return readFrom(startBuffer, startPos, endBuffer, endPos, data, discard);
+        }
+        total += buf.size();
+        rem -= buf.size();
+        ++currentBuffer;
+        currentPos = 0;
+    } while (currentBuffer != buffers.end());
+    currentBuffer = startBuffer;
+    currentPos = startPos;
+    return false;
 }
 
 bool HttpServer::Data::readLine(String& data)
@@ -128,10 +160,48 @@ void HttpServer::Data::discardRead()
     currentPos = 0;
 }
 
+template<typename T, typename U>
+inline T toNumber(const String& str, bool* ok, int base, bool strict,
+                  const std::function<U(const char *, char **, int base)>& convert)
+{
+    char* end = 0;
+    const T ret = convert(str.constData(), &end, base);
+    if (ok) {
+        *ok = (end != 0) && (end != str.constData());
+        if (*ok && strict)
+            *ok = !*end;
+    }
+    return ret;
+}
+
+template<typename T>
+inline T toInteger(const String& str, bool* ok = 0, int base = 10, bool strict = false)
+{
+    return toNumber<T, long>(str, ok, base, strict, strtol);
+}
+
+template<>
+inline uint32_t toInteger<uint32_t>(const String& str, bool* ok, int base, bool strict)
+{
+    return toNumber<uint32_t, unsigned long>(str, ok, base, strict, strtoul);
+}
+
+template<>
+inline int64_t toInteger<int64_t>(const String& str, bool* ok, int base, bool strict)
+{
+    return toNumber<int64_t, long long>(str, ok, base, strict, strtoll);
+}
+
+template<>
+inline uint64_t toInteger<uint64_t>(const String& str, bool* ok, int base, bool strict)
+{
+    return toNumber<uint64_t, unsigned long long>(str, ok, base, strict, strtoull);
+}
+
 void HttpServer::addClient(const SocketClient::SharedPtr& client)
 {
     const uint64_t id = ++mNextId;
-    mData[id] = { id, 0, client, Data::ReadingStatus, 0 };
+    mData[id] = { id, 0, client, Data::ReadingStatus, Data::ModeNone, -1, 0 };
     Data& data = mData[id];
     data.currentBuffer = data.buffers.begin();
 
@@ -144,28 +214,125 @@ void HttpServer::addClient(const SocketClient::SharedPtr& client)
                     data.currentPos = 0;
                 }
                 String line;
-                while (data.readLine(line)) {
+                while (data.state == Data::ReadingStatus || data.state == Data::ReadingHeaders) {
+                    if (!data.readLine(line))
+                        return;
                     if (data.state == Data::ReadingStatus) {
                         data.request.reset(new Request(this, data.client));
                         if (!data.request->parseStatus(line)) {
                             data.client->close();
                             data.client.reset();
                             mData.erase(id);
+                            return;
                         }
                         data.state = Data::ReadingHeaders;
-                    } else if (data.state == Data::ReadingHeaders) {
+                    } else {
+                        assert(data.state == Data::ReadingHeaders);
                         if (line.size() == 2) {
                             // we're done
                             assert(line[0] == '\r' && line[1] == '\n');
-                            mRequest(data.request);
-                            data.request.reset();
-                            data.discardRead();
                             data.state = Data::ReadingBody;
+
+                            if (data.request->method() == Request::Post) {
+                                const Headers& headers = data.request->headers();
+                                String v = headers.value("Content-Length");
+                                if (!v.isEmpty()) {
+                                    bool ok;
+                                    data.bodyLength = toInteger<int64_t>(v, &ok);
+                                    if (ok && data.bodyLength >= 0) {
+                                        data.bodyMode = Data::ModeLength;
+                                        if (!data.bodyLength) {
+                                            data.request->mBody.mDone = true;
+                                            data.request->mBody.mReadyRead(&data.request->mBody);
+                                            data.request.reset();
+                                            data.state = Data::ReadingStatus;
+                                        }
+                                    } else {
+                                        // badness
+                                        data.client->close();
+                                        data.client.reset();
+                                        mData.erase(id);
+                                        return;
+                                    }
+                                } else {
+                                    v = headers.value("Transfer-Encoding");
+                                    if (v == "chunked") {
+                                        data.bodyMode = Data::ModeChunked;
+                                    }
+                                }
+                                if (data.bodyMode == Data::ModeNone) {
+                                    data.state = Data::ReadingStatus;
+                                }
+                            } else {
+                                data.state = Data::ReadingStatus;
+                            }
+
+                            mRequest(data.request);
+                            if (data.state != Data::ReadingBody) {
+                                data.request.reset();
+                            }
+                            data.discardRead();
                         } else {
                             if (!data.request->parseHeader(line)) {
                                 data.client->close();
                                 data.client.reset();
                                 mData.erase(id);
+                                return;
+                            }
+                        }
+                    }
+                }
+                if (data.state == Data::ReadingBody) {
+                    if (data.bodyMode == Data::ModeLength) {
+                        assert(data.bodyLength > 0);
+                        String body;
+                        if (data.read(body, data.bodyLength)) {
+                            data.request->mBody.mBody += body;
+                            data.request->mBody.mDone = true;
+                            data.request->mBody.mReadyRead(&data.request->mBody);
+                            data.request.reset();
+                            data.state = Data::ReadingStatus;
+                            data.discardRead();
+                        }
+                    } else if (data.bodyMode == Data::ModeChunked) {
+                        String body;
+                        for (;;) {
+                            if (data.bodyLength == -1) { // read the chunk size;
+                                if (!data.readLine(body)) {
+#warning should have a max size here
+                                    return;
+                                }
+                                // we ignore extensions for the time being
+                                bool ok;
+                                const uint32_t len = toInteger<uint32_t>(body, &ok, 16);
+                                if (!ok) {
+                                    // badness
+                                    data.client->close();
+                                    data.client.reset();
+                                    mData.erase(id);
+                                    return;
+                                }
+                                data.bodyLength = len;
+                                ::error() << "chunk size" << data.bodyLength;
+                            }
+                            // can we read it all right now?
+                            if (data.read(body, data.bodyLength, 2)) { // + 2 for the trailing \r\n
+                                // yes, we're done with this chunk
+                                data.request->mBody.mBody += body;
+                                if (data.bodyLength == 0) {
+                                    // we're done with all chunks!
+                                    data.request->mBody.mDone = true;
+                                    data.request->mBody.mReadyRead(&data.request->mBody);
+                                    data.request.reset();
+                                    data.state = Data::ReadingStatus;
+                                    data.discardRead();
+                                    return;
+                                }
+                                data.request->mBody.mReadyRead(&data.request->mBody);
+                                data.bodyLength = -1;
+                            } else {
+                                // nope, bail out
+                                return;
                             }
                         }
                     }
@@ -189,10 +356,12 @@ void HttpServer::Headers::set(const String& key, const List<String>& values)
 
 String HttpServer::Headers::value(const String& key) const
 {
-    const List<String> values = mHeaders[key];
-    if (values.isEmpty())
+    const auto it = mHeaders.find(key);
+    if (it == mHeaders.end())
         return String();
-    return values.front();
+    if (it->second.isEmpty())
+        return String();
+    return it->second.front();
 }
 
 List<String> HttpServer::Headers::values(const String& key) const
@@ -206,6 +375,11 @@ List<String> HttpServer::Headers::values(const String& key) const
 HttpServer::Request::Request(HttpServer* server, const SocketClient::SharedPtr& client)
     : mClient(client), mProtocol(Http10), mMethod(Get), mBody(this), mServer(server)
 {
+}
+
+HttpServer::Request::~Request()
+{
+    ::error() << "~Request";
 }
 
 bool HttpServer::Request::parseMethod(const String& method)
@@ -360,21 +534,4 @@ void HttpServer::Request::write(const Response& response)
     resp += "\r\n" + response.mBody;
 
     client->write(resp);
-}
-
-HttpServer::Body::Body(Request* req)
-    : mRequest(req)
-{
-}
-
-bool HttpServer::Body::atEnd() const
-{
-}
-
-String HttpServer::Body::read(int size)
-{
-}
-
-String HttpServer::Body::readAll()
-{
 }
