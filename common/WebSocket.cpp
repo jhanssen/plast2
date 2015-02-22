@@ -95,6 +95,7 @@ WebSocket::WebSocket(const SocketClient::SharedPtr& client)
         });
     client->disconnected().connect([this](const SocketClient::SharedPtr& client) {
             mClient.reset();
+            mDisconnected(this);
         });
 }
 

@@ -55,6 +55,7 @@ public:
 
     Signal<std::function<void(WebSocket*, const Message&)> >& message() { return mMessage; }
     Signal<std::function<void(WebSocket*)> >& error() { return mError; }
+    Signal<std::function<void(WebSocket*)> >& disconnected() { return mDisconnected; }
 
     static bool response(const HttpServer::Request& req, HttpServer::Response& resp);
 
@@ -75,7 +76,7 @@ private:
     LinkedList<Buffer> mBuffers;
 
     Signal<std::function<void(WebSocket*, const Message&)> > mMessage;
-    Signal<std::function<void(WebSocket*)> > mError;
+    Signal<std::function<void(WebSocket*)> > mError, mDisconnected;
 };
 
 inline WebSocket::Message::Message(Opcode opcode, const String& message)
