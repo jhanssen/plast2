@@ -201,7 +201,7 @@ inline uint64_t toInteger<uint64_t>(const String& str, bool* ok, int base, bool 
 void HttpServer::addClient(const SocketClient::SharedPtr& client)
 {
     const uint64_t id = ++mNextId;
-    mData[id] = { id, 0, 0, client, Data::ReadingStatus, Data::ModeNone, -1, 0 };
+    mData[id] = { this, id, 0, 0, false, client, Data::ReadingStatus, Data::ModeNone, -1, 0 };
     Data& data = mData[id];
     data.currentBuffer = data.buffers.begin();
 
@@ -529,6 +529,19 @@ static inline const char* statusText(int code)
     return "";
 }
 
+void HttpServer::Request::close()
+{
+    Data* data = mServer->data(mId);
+    if (!data)
+        return;
+    if (mSeq == data->current) {
+        // close right now
+        data->close();
+    } else {
+        data->pendingClose = true;
+    }
+}
+
 void HttpServer::Request::write(const Response& response, Response::WriteMode mode)
 {
     Data* data = mServer->data(mId);
@@ -561,6 +574,13 @@ SocketClient::SharedPtr HttpServer::Request::takeSocket()
     return client;
 }
 
+void HttpServer::Data::close()
+{
+    client->close();
+    client.reset();
+    server->removeData(id);
+}
+
 void HttpServer::Data::write(const Response& response)
 {
     static int ver[2][2] = { { 1, 0 }, { 1, 1 } };
@@ -591,8 +611,12 @@ void HttpServer::Data::writeQueued()
 {
     for (;;) {
         auto it = queue.find(current);
-        if (it == queue.end())
+        if (it == queue.end()) {
+            if (pendingClose) {
+                close();
+            }
             return;
+        }
         for (const Response& response : it->second) {
             write(response);
         }

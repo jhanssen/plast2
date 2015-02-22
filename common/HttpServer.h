@@ -118,6 +118,7 @@ public:
         Body& body() { return mBody; }
 
         void write(const Response& response, Response::WriteMode mode = Response::Complete);
+        void close();
 
         SocketClient::SharedPtr takeSocket();
 
@@ -155,8 +156,10 @@ private:
 private:
     struct Data
     {
+        HttpServer* server;
         uint64_t id;
         uint64_t seq, current;
+        bool pendingClose;
         SocketClient::SharedPtr client;
 
         enum { ReadingStatus, ReadingHeaders, ReadingBody } state;
@@ -179,6 +182,7 @@ private:
                       const LinkedList<Buffer>::iterator& endBuffer, unsigned int endPos,
                       String& data, unsigned int discard = 0);
 
+        void close();
         void write(const Response& response);
         void enqueue(uint64_t seq, const Response& response);
         void writeQueued();
