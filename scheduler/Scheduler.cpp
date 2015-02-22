@@ -58,8 +58,14 @@ Scheduler::Scheduler(const Options& opts)
                         WebSocket::SharedPtr websocket = std::make_shared<WebSocket>(req->takeSocket());
                         websocket->message().connect([websocket](WebSocket*, const WebSocket::Message& msg) {
                                 error() << "got message" << msg.opcode() << msg.message();
-                                if (msg.opcode() == WebSocket::Message::TextFrame)
+                                if (msg.opcode() == WebSocket::Message::TextFrame) {
                                     websocket->write(msg);
+                                    websocket->close();
+                                    EventLoop::eventLoop()->callLater(
+                                        std::bind([websocket] {
+                                                websocket->message().disconnect();
+                                            }));
+                                }
                             });
                         return;
                     }

@@ -51,6 +51,7 @@ public:
     };
 
     void write(const Message& message);
+    void close();
 
     Signal<std::function<void(WebSocket*, const Message&)> >& message() { return mMessage; }
     Signal<std::function<void(WebSocket*)> >& error() { return mError; }
@@ -85,6 +86,14 @@ inline WebSocket::Message::Message(Opcode opcode, const String& message)
 inline WebSocket::Message::Message(Opcode opcode, const String& message, uint16_t statusCode)
     : mOpcode(opcode), mMessage(message), mStatusCode(statusCode)
 {
+}
+
+inline void WebSocket::close()
+{
+    if (!mClient)
+        return;
+    mClient->close();
+    mClient.reset();
 }
 
 #endif
