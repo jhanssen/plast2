@@ -11,3 +11,6 @@ libcommon.a
 daemon/daemon
 scheduler/scheduler
 client/plastc
+wslay-prefix
+include/wslay
+lib
