@@ -3,6 +3,7 @@
 #include <rct/EventLoop.h>
 #include <rct/Log.h>
 #include <rct/Config.h>
+#include <rct/Rct.h>
 #include <stdio.h>
 
 template<typename T>
@@ -20,6 +21,8 @@ inline bool validate(int64_t c, const char* name, String& err)
 
 int main(int argc, char** argv)
 {
+    Rct::findExecutablePath(*argv);
+
     Config::registerOption<bool>("help", "Display this page", 'h');
     Config::registerOption<int>("port", String::format<129>("Use this port, (default %d)", plast::DefaultServerPort),'p', plast::DefaultServerPort,
                                 [](const int &count, String &err) { return validate<uint16_t>(count, "port", err); });

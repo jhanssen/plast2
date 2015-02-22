@@ -1,8 +1,27 @@
 #include "Scheduler.h"
 #include <WebSocket.h>
 #include <rct/Log.h>
+#include <string.h>
 
 Scheduler::WeakPtr Scheduler::sInstance;
+
+static inline const char* guessMime(const Path& file)
+{
+    const char* ext = file.extension();
+    if (!ext)
+        return "text/plain";
+    if (!strcmp(ext, "html"))
+        return "text/html";
+    if (!strcmp(ext, "txt"))
+        return "text/plain";
+    if (!strcmp(ext, "js"))
+        return "text/javascript";
+    if (!strcmp(ext, "jpg"))
+        return "image/jpg";
+    if (!strcmp(ext, "png"))
+        return "image/png";
+    return "text/plain";
+}
 
 Scheduler::Scheduler(const Options& opts)
     : mOpts(opts)
@@ -25,31 +44,7 @@ Scheduler::Scheduler(const Options& opts)
     mHttpServer.listen(8089);
     mHttpServer.request().connect([](const HttpServer::Request::SharedPtr& req) {
             error() << "got request" << req->protocol() << req->method() << req->path();
-            if (req->method() == HttpServer::Request::Post) {
-                if (req->headers().value("Expect") == "100-continue") {
-                    // send a 100 response
-                    error() << "sending a 100 response";
-                    HttpServer::Response response(req->protocol(), 100);
-                    req->write(response, HttpServer::Response::Incomplete);
-                }
-                req->body().readyRead().connect([](HttpServer::Body* body) {
-                        error() << "body data" << body->read();
-                        if (body->done()) {
-                            HttpServer::Request::SharedPtr req = body->request();
-                            if (!req) {
-                                error() << "!NO GOOD";
-                                return;
-                            }
-                            error() << "!DONE body";
-                            HttpServer::Response response(req->protocol(), 200);
-                            response.headers().add("Content-Length", "9");
-                            response.headers().add("Content-Type", "text/plain");
-                            response.headers().add("Connection", "keep-alive");
-                            response.setBody("blah body");
-                            req->write(response);
-                        }
-                    });
-            } else {
+            if (req->method() == HttpServer::Request::Get) {
                 if (req->headers().has("Upgrade")) {
                     error() << "upgrade?";
                     HttpServer::Response response;
@@ -69,12 +64,42 @@ Scheduler::Scheduler(const Options& opts)
                         return;
                     }
                 }
-                HttpServer::Response response(req->protocol(), 200);
-                response.headers().add("Content-Length", "4");
-                response.headers().add("Content-Type", "text/plain");
-                response.headers().add("Connection", "keep-alive");
-                response.setBody("blah");
-                req->write(response);
+
+                String file = req->path();
+                if (file == "/")
+                    file = "/stats.html";
+                if (file.contains("..") || !file.startsWith("/")) {
+                    // no
+                    const String data = "No.";
+                    HttpServer::Response response(req->protocol(), 404);
+                    response.headers().add("Content-Length", String::number(data.size()));
+                    response.headers().add("Content-Type", "text/plain");
+                    response.headers().add("Connection", "close");
+                    response.setBody(data);
+                    req->write(response, HttpServer::Response::Incomplete);
+                    req->close();
+                } else {
+                    // serve file
+                    static Path base = Rct::executablePath().parentDir().ensureTrailingSlash();
+                    const Path path =  base + "stats" + file;
+                    if (path.isFile()) {
+                        const String data = path.readAll();
+                        HttpServer::Response response(req->protocol(), 200);
+                        response.headers().add("Content-Length", String::number(data.size()));
+                        response.headers().add("Content-Type", guessMime(file));
+                        response.headers().add("Connection", "keep-alive");
+                        response.setBody(data);
+                        req->write(response);
+                    } else {
+                        const String data = "Unable to open " + file;
+                        HttpServer::Response response(req->protocol(), 404);
+                        response.headers().add("Content-Length", String::number(data.size()));
+                        response.headers().add("Content-Type", "text/plain");
+                        response.headers().add("Connection", "keep-alive");
+                        response.setBody(data);
+                        req->write(response);
+                    }
+                }
             }
         });
 }
