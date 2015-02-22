@@ -29,7 +29,7 @@ Scheduler::Scheduler(const Options& opts)
                     // send a 100 response
                     error() << "sending a 100 response";
                     HttpServer::Response response(req->protocol(), 100);
-                    req->write(response);
+                    req->write(response, HttpServer::Request::Incomplete);
                 }
                 req->body().readyRead().connect([](HttpServer::Body* body) {
                         error() << "body data" << body->read();

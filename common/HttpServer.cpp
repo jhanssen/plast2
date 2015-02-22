@@ -201,7 +201,7 @@ inline uint64_t toInteger<uint64_t>(const String& str, bool* ok, int base, bool 
 void HttpServer::addClient(const SocketClient::SharedPtr& client)
 {
     const uint64_t id = ++mNextId;
-    mData[id] = { id, 0, client, Data::ReadingStatus, Data::ModeNone, -1, 0 };
+    mData[id] = { id, 0, 0, client, Data::ReadingStatus, Data::ModeNone, -1, 0 };
     Data& data = mData[id];
     data.currentBuffer = data.buffers.begin();
 
@@ -218,7 +218,7 @@ void HttpServer::addClient(const SocketClient::SharedPtr& client)
                     if (!data.readLine(line))
                         return;
                     if (data.state == Data::ReadingStatus) {
-                        data.request.reset(new Request(this, data.client));
+                        data.request.reset(new Request(this, data.id, data.seq++));
                         data.request->mBody.mRequest = data.request;
                         if (!data.request->parseStatus(line)) {
                             data.client->close();
@@ -345,6 +345,14 @@ void HttpServer::addClient(const SocketClient::SharedPtr& client)
         });
 }
 
+HttpServer::Data* HttpServer::data(uint64_t id)
+{
+    auto it = mData.find(id);
+    if (it == mData.end())
+        return 0;
+    return &it->second;
+}
+
 void HttpServer::Headers::add(const String& key, const String& value)
 {
     mHeaders[key].push_back(value);
@@ -373,8 +381,8 @@ List<String> HttpServer::Headers::values(const String& key) const
     return it->second;
 }
 
-HttpServer::Request::Request(HttpServer* server, const SocketClient::SharedPtr& client)
-    : mClient(client), mProtocol(Http10), mMethod(Get), mServer(server)
+HttpServer::Request::Request(HttpServer* server, uint64_t id, uint64_t seq)
+    : mId(id), mSeq(seq), mProtocol(Http10), mMethod(Get), mServer(server)
 {
 }
 
@@ -508,12 +516,27 @@ static inline const char* statusText(int code)
     return "";
 }
 
-void HttpServer::Request::write(const Response& response)
+void HttpServer::Request::write(const Response& response, WriteMode mode)
 {
-    SocketClient::SharedPtr client = mClient.lock();
-    if (!client)
+    Data* data = mServer->data(mId);
+    ::error() << "boof";
+    if (!data)
         return;
+    ::error() << "wanting to write" << data->current << mSeq;
+    if (mSeq == data->current) {
+        // write right now
+        data->write(response);
+        if (mode == Complete) {
+            ++data->current;
+            data->writeQueued();
+        }
+    } else {
+        data->enqueue(mSeq, response);
+    }
+}
 
+void HttpServer::Data::write(const Response& response)
+{
     static int ver[2][2] = { { 1, 0 }, { 1, 1 } };
 
     String resp = String::format<64>("HTTP/%d.%d %d %s\r\n",
@@ -535,4 +558,23 @@ void HttpServer::Request::write(const Response& response)
     resp += "\r\n" + response.mBody;
 
     client->write(resp);
+}
+
+void HttpServer::Data::writeQueued()
+{
+    for (;;) {
+        auto it = queue.find(current);
+        if (it == queue.end())
+            return;
+        for (const Response& response : it->second) {
+            write(response);
+        }
+        ++current;
+        queue.erase(it);
+    }
+}
+
+void HttpServer::Data::enqueue(uint64_t seq, const Response& response)
+{
+    queue[seq].push_back(response);
 }

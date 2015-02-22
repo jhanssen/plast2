@@ -8,9 +8,12 @@
 #include <rct/LinkedList.h>
 #include <rct/Buffer.h>
 #include <rct/Hash.h>
+#include <rct/Map.h>
 
 class HttpServer : private SocketServer
 {
+    struct Data;
+
 public:
     typedef std::shared_ptr<HttpServer> SharedPtr;
     typedef std::weak_ptr<HttpServer> WeakPtr;
@@ -58,7 +61,7 @@ public:
         Headers mHeaders;
         String mBody;
 
-        friend class Request;
+        friend struct Data;
     };
 
     class Body
@@ -99,7 +102,8 @@ public:
         const Body& body() const { return mBody; }
         Body& body() { return mBody; }
 
-        void write(const Response& response);
+        enum WriteMode { Incomplete, Complete };
+        void write(const Response& response, WriteMode mode = Complete);
 
     private:
         bool parseStatus(const String& line);
@@ -108,9 +112,9 @@ public:
         bool parseHeader(const String& line);
 
     private:
-        Request(HttpServer* server, const SocketClient::SharedPtr& client);
+        Request(HttpServer* server, uint64_t id, uint64_t seq);
 
-        SocketClient::WeakPtr mClient;
+        uint64_t mId, mSeq;
         Protocol mProtocol;
         Method mMethod;
         String mPath;
@@ -129,11 +133,13 @@ private:
     void addClient(const SocketClient::SharedPtr& client);
     void makeRequest(const SocketClient::SharedPtr& client, const String& headers);
 
+    Data* data(uint64_t id);
+
 private:
     struct Data
     {
         uint64_t id;
-        uint64_t seq;
+        uint64_t seq, current;
         SocketClient::SharedPtr client;
 
         enum { ReadingStatus, ReadingHeaders, ReadingBody } state;
@@ -146,6 +152,7 @@ private:
         String bodyData;
 
         Request::SharedPtr request;
+        Map<uint64_t, List<Response> > queue;
 
         bool readLine(String& data);
         bool read(String& data, unsigned int len, unsigned int discard = 0);
@@ -154,6 +161,10 @@ private:
         bool readFrom(const LinkedList<Buffer>::iterator& startBuffer, unsigned int startPos,
                       const LinkedList<Buffer>::iterator& endBuffer, unsigned int endPos,
                       String& data, unsigned int discard = 0);
+
+        void write(const Response& response);
+        void enqueue(uint64_t seq, const Response& response);
+        void writeQueued();
     };
     Protocol mProtocol;
     uint64_t mNextId;
