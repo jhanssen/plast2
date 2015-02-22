@@ -371,6 +371,11 @@ void HttpServer::Headers::set(const String& key, const List<String>& values)
     mHeaders[key.toLower()] = values;
 }
 
+bool HttpServer::Headers::has(const String& key) const
+{
+    return mHeaders.contains(key.toLower());
+}
+
 String HttpServer::Headers::value(const String& key) const
 {
     const auto it = mHeaders.find(key.toLower());

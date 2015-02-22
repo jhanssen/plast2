@@ -32,6 +32,7 @@ public:
         void add(const String& key, const String& value);
         void set(const String& key, const List<String>& values);
 
+        bool has(const String& key) const;
         String value(const String& key) const;
         List<String> values(const String& key) const;
         Hash<String, List<String> > headers() const;
