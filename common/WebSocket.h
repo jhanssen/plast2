@@ -1,10 +1,12 @@
 #ifndef WEBSOCKET_H
 #define WEBSOCKET_H
 
+#include "HttpServer.h"
 #include <rct/LinkedList.h>
 #include <rct/SocketClient.h>
 #include <rct/SignalSlot.h>
 #include <cstdint>
+#include <memory>
 
 struct wslay_event_context;
 struct wslay_event_on_msg_recv_arg;
@@ -12,6 +14,9 @@ struct wslay_event_on_msg_recv_arg;
 class WebSocket
 {
 public:
+    typedef std::shared_ptr<WebSocket> SharedPtr;
+    typedef std::weak_ptr<WebSocket> WeakPtr;
+
     WebSocket(const SocketClient::SharedPtr& client);
     ~WebSocket();
 
@@ -19,12 +24,12 @@ public:
     {
     public:
         enum Opcode {
-            ContinuationFrame,
-            TextFrame,
-            BinaryFrame,
-            ConnectionClose,
-            Ping,
-            Pong
+            ContinuationFrame = 0,
+            TextFrame         = 1,
+            BinaryFrame       = 2,
+            ConnectionClose   = 8,
+            Ping              = 9,
+            Pong              = 10
         };
 
         Message(Opcode opcode, const String& message = String());
@@ -49,6 +54,8 @@ public:
 
     Signal<std::function<void(WebSocket*, const Message&)> >& message() { return mMessage; }
     Signal<std::function<void(WebSocket*)> >& error() { return mError; }
+
+    static bool response(const HttpServer::Request& req, HttpServer::Response& resp);
 
 private:
     static ssize_t wslaySendCallback(wslay_event_context* ctx,

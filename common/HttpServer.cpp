@@ -363,22 +363,22 @@ void HttpServer::removeData(uint64_t id)
 
 void HttpServer::Headers::add(const String& key, const String& value)
 {
-    mHeaders[key.toLower()].push_back(value);
+    mHeaders[key].push_back(value);
 }
 
 void HttpServer::Headers::set(const String& key, const List<String>& values)
 {
-    mHeaders[key.toLower()] = values;
+    mHeaders[key] = values;
 }
 
 bool HttpServer::Headers::has(const String& key) const
 {
-    return mHeaders.contains(key.toLower());
+    return mHeaders.contains(key);
 }
 
 String HttpServer::Headers::value(const String& key) const
 {
-    const auto it = mHeaders.find(key.toLower());
+    const auto it = mHeaders.find(key);
     if (it == mHeaders.end())
         return String();
     if (it->second.isEmpty())
@@ -388,7 +388,7 @@ String HttpServer::Headers::value(const String& key) const
 
 List<String> HttpServer::Headers::values(const String& key) const
 {
-    const auto it = mHeaders.find(key.toLower());
+    const auto it = mHeaders.find(key);
     if (it == mHeaders.end())
         return List<String>();
     return it->second;
@@ -583,6 +583,7 @@ void HttpServer::Data::write(const Response& response)
     }
     resp += "\r\n" + response.mBody;
 
+    //::error() << resp;
     client->write(resp);
 }
 

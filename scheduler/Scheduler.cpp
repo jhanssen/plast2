@@ -50,6 +50,20 @@ Scheduler::Scheduler(const Options& opts)
                         }
                     });
             } else {
+                if (req->headers().has("Upgrade")) {
+                    error() << "upgrade?";
+                    HttpServer::Response response;
+                    if (WebSocket::response(*req, response)) {
+                        req->write(response);
+                        WebSocket::SharedPtr websocket = std::make_shared<WebSocket>(req->takeSocket());
+                        websocket->message().connect([websocket](WebSocket*, const WebSocket::Message& msg) {
+                                error() << "got message" << msg.opcode() << msg.message();
+                                if (msg.opcode() == WebSocket::Message::TextFrame)
+                                    websocket->write(msg);
+                            });
+                        return;
+                    }
+                }
                 HttpServer::Response response(req->protocol(), 200);
                 response.headers().add("Content-Length", "4");
                 response.headers().add("Content-Type", "text/plain");

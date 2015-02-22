@@ -1,5 +1,87 @@
 #include "WebSocket.h"
 #include <wslay/wslay.h>
+#ifdef OS_Darwin
+#include <CommonCrypto/CommonDigest.h>
+#include <Security/Security.h>
+#define SHA1_Update       CC_SHA1_Update
+#define SHA1_Init         CC_SHA1_Init
+#define SHA1_Final        CC_SHA1_Final
+#define SHA_CTX           CC_SHA1_CTX
+#define SHA_DIGEST_LENGTH CC_SHA1_DIGEST_LENGTH
+#else
+#include <openssl/sha.h>
+#include <openssl/bio.h>
+#include <openssl/evp.h>
+#endif
+
+static inline String base64(const String& input)
+{
+#ifdef OS_Darwin
+    String result;
+    SecTransformRef transform = SecEncodeTransformCreate(kSecBase64Encoding, 0);
+    CFDataRef sourceData = CFDataCreate(kCFAllocatorDefault,
+                                        reinterpret_cast<const UInt8*>(input.constData()),
+                                        input.size());
+    SecTransformSetAttribute(transform, kSecTransformInputAttributeName, sourceData, 0);
+    CFDataRef encodedData = static_cast<CFDataRef>(SecTransformExecute(transform, 0));
+    const long len = CFDataGetLength(encodedData);
+    if (len > 0) {
+        result.resize(len);
+        CFDataGetBytes(encodedData, CFRangeMake(0, len), reinterpret_cast<UInt8*>(result.data()));
+    }
+    CFRelease(encodedData);
+    CFRelease(transform);
+    CFRelease(sourceData);
+#else
+    BIO *base64_filter = BIO_new(BIO_f_base64());
+    BIO_set_flags(base64_filter, BIO_FLAGS_BASE64_NO_NL);
+
+    BIO *bio = BIO_new(BIO_s_mem());
+    BIO_set_flags(bio, BIO_FLAGS_BASE64_NO_NL);
+
+    bio = BIO_push(base64_filter, bio);
+
+    BIO_write(bio, input.constData(), input.size());
+
+    BIO_flush(bio);
+
+    char *new_data;
+
+    const long bytes_written = BIO_get_mem_data(bio, &new_data);
+
+    String result(new_data, bytes_written);
+    BIO_free_all(bio);
+#endif
+
+    return result;
+}
+
+static const char* const hexLookup = "0123456789abcdef";
+
+static inline String hashToHex(const unsigned char digest[SHA_DIGEST_LENGTH])
+{
+    String out(SHA_DIGEST_LENGTH * 2, '\0');
+    const unsigned char* get = digest;
+    char* put = out.data();
+    const char* const end = out.data() + out.size();
+    for (; put != end; ++get) {
+        *(put++) = hexLookup[(*get >> 4) & 0xf];
+        *(put++) = hexLookup[*get & 0xf];
+    }
+    return out;
+}
+
+static inline String sha1(const String& input)
+{
+    unsigned char digest[SHA_DIGEST_LENGTH];
+
+    SHA_CTX ctx;
+    SHA1_Init(&ctx);
+    SHA1_Update(&ctx, input.constData(), input.size());
+    SHA1_Final(digest, &ctx);
+
+    return String(reinterpret_cast<char*>(&digest[0]), SHA_DIGEST_LENGTH);
+}
 
 WebSocket::WebSocket(const SocketClient::SharedPtr& client)
     : mClient(client)
@@ -83,7 +165,7 @@ ssize_t WebSocket::wslayRecvCallback(wslay_event_context* ctx,
             buf.resize(buf.size() - rem);
             return len;
         }
-        ++it;
+        socket->mBuffers.erase(it++);
     }
     return ptr - data;
 }
@@ -109,4 +191,26 @@ void WebSocket::write(const Message& msg)
     };
     wslay_event_queue_msg(mCtx, &wmsg);
     wslay_event_send(mCtx);
+}
+
+static inline String makeKey(const String& key)
+{
+    return base64(sha1(key + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"));
+}
+
+bool WebSocket::response(const HttpServer::Request& req, HttpServer::Response& resp)
+{
+    const HttpServer::Headers& headers = req.headers();
+    if (headers.value("Connection") != "Upgrade"
+        || headers.value("Upgrade") != "websocket"
+        || !headers.has("Sec-WebSocket-Key"))
+        return false;
+
+    const String key = headers.value("Sec-WebSocket-Key");
+
+    resp = HttpServer::Response(req.protocol(), 101);
+    resp.headers().add("Upgrade", "websocket");
+    resp.headers().add("Connection", "Upgrade");
+    resp.headers().add("Sec-WebSocket-Accept", makeKey(key));
+    return true;
 }

@@ -26,6 +26,15 @@ public:
 
     bool listen(uint16_t port, Protocol proto = Http11, Mode mode = IPv4);
 
+    template<typename T>
+    struct LowerLess
+    {
+        bool operator()(const T& l, const T& b) const
+        {
+            return l.toLower() < b.toLower();
+        }
+    };
+
     class Headers
     {
     public:
@@ -35,10 +44,13 @@ public:
         bool has(const String& key) const;
         String value(const String& key) const;
         List<String> values(const String& key) const;
-        Hash<String, List<String> > headers() const;
+
+        typedef Map<String, List<String>, LowerLess<String> > StringMap;
+
+        StringMap headers() const;
 
     private:
-        Hash<String, List<String> > mHeaders;
+        StringMap mHeaders;
     };
 
     class Request;
@@ -181,7 +193,7 @@ private:
     friend class Request;
 };
 
-inline Hash<String, List<String> > HttpServer::Headers::headers() const
+inline HttpServer::Headers::StringMap HttpServer::Headers::headers() const
 {
     return mHeaders;
 }
