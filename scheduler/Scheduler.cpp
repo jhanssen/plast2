@@ -60,9 +60,8 @@ Scheduler::Scheduler(const Options& opts)
                                 error() << "got message" << msg.opcode() << msg.message();
                                 if (msg.opcode() == WebSocket::Message::TextFrame) {
                                     websocket->write(msg);
-                                    websocket->close();
-                                    EventLoop::eventLoop()->callLater(
-                                        std::bind([websocket] {
+                                    EventLoop::eventLoop()->callLater(std::bind([websocket] {
+                                                websocket->close();
                                                 websocket->message().disconnect();
                                             }));
                                 }
