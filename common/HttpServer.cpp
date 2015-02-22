@@ -269,6 +269,8 @@ void HttpServer::addClient(const SocketClient::SharedPtr& client)
                             }
 
                             mRequest(data.request);
+                            if (!mData.contains(id))
+                                return;
                             if (data.state != Data::ReadingBody) {
                                 data.request.reset();
                             }
