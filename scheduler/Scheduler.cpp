@@ -18,6 +18,8 @@ static inline const char* guessMime(const Path& file)
         return "text/plain";
     if (!strcmp(ext, "js"))
         return "text/javascript";
+    if (!strcmp(ext, "css"))
+        return "text/css";
     if (!strcmp(ext, "jpg"))
         return "image/jpg";
     if (!strcmp(ext, "png"))
@@ -74,8 +76,10 @@ Scheduler::Scheduler(const Options& opts)
 
                 String file = req->path();
                 if (file == "/")
-                    file = "/stats.html";
-                if (file.contains("..") || !file.startsWith("/")) {
+                    file = "stats.html";
+                static Path base = Rct::executablePath().parentDir().ensureTrailingSlash() + "stats/";
+                const Path path = Path(base + file).resolved();
+                if (!path.startsWith(base)) {
                     // no
                     const String data = "No.";
                     HttpServer::Response response(req->protocol(), 404);
@@ -87,8 +91,6 @@ Scheduler::Scheduler(const Options& opts)
                     req->close();
                 } else {
                     // serve file
-                    static Path base = Rct::executablePath().parentDir().ensureTrailingSlash();
-                    const Path path =  base + "stats" + file;
                     if (path.isFile()) {
                         const String data = path.readAll();
                         HttpServer::Response response(req->protocol(), 200);
