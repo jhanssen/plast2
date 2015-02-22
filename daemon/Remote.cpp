@@ -1,6 +1,7 @@
 #include "Remote.h"
 #include "Daemon.h"
 #include <rct/Log.h>
+#include <unistd.h>
 
 #define RESCHEDULETIMEOUT 15000
 #define RESCHEDULECHECK   5000
@@ -50,6 +51,14 @@ void Remote::init()
     if (!mConnection.connectTcp(opts.serverHost, opts.serverPort)) {
         error("Can't seem to connect to server");
         abort();
+    }
+    {
+        String hn;
+        hn.resize(sysconf(_SC_HOST_NAME_MAX));
+        if (gethostname(hn.data(), hn.size()) == 0) {
+            hn.resize(strlen(hn.constData()));
+            mConnection.send(PeerMessage(hn, opts.localPort));
+        }
     }
 
     mRescheduleTimer.timeout().connect([this](Timer*) {

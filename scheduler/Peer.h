@@ -18,16 +18,24 @@ public:
 
     Connection* connection() { return &mConnection; }
 
+    String name() const { return mName; }
+    int id() const { return mId; }
+
     enum Event {
         Building,
+        NameChanged,
         Disconnected,
         JobsAvailable
     };
     Signal<std::function<void(const Peer::SharedPtr&, Event, const Value&)> >& event() { return mEvent; }
 
 private:
+    int mId;
     Connection mConnection;
+    String mName;
     Signal<std::function<void(const Peer::SharedPtr&, Event, const Value&)> > mEvent;
+
+    static int sId;
 };
 
 #endif

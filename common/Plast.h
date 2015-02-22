@@ -20,7 +20,8 @@ enum {
     JobMessageId,
     RequestJobsMessageId,
     HandshakeMessageId,
-    JobResponseMessageId
+    JobResponseMessageId,
+    PeerMessageId
 };
 
 } // namespace plast

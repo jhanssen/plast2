@@ -1,7 +1,9 @@
 #include "Scheduler.h"
-#include <WebSocket.h>
+#include <json11.hpp>
 #include <rct/Log.h>
 #include <string.h>
+
+using namespace json11;
 
 Scheduler::WeakPtr Scheduler::sInstance;
 
@@ -42,7 +44,7 @@ Scheduler::Scheduler(const Options& opts)
     }
 
     mHttpServer.listen(8089);
-    mHttpServer.request().connect([](const HttpServer::Request::SharedPtr& req) {
+    mHttpServer.request().connect([this](const HttpServer::Request::SharedPtr& req) {
             error() << "got request" << req->protocol() << req->method() << req->path();
             if (req->method() == HttpServer::Request::Get) {
                 if (req->headers().has("Upgrade")) {
@@ -51,16 +53,21 @@ Scheduler::Scheduler(const Options& opts)
                     if (WebSocket::response(*req, response)) {
                         req->write(response);
                         WebSocket::SharedPtr websocket = std::make_shared<WebSocket>(req->takeSocket());
-                        websocket->message().connect([websocket](WebSocket*, const WebSocket::Message& msg) {
+                        mWebSockets[websocket.get()] = websocket;
+                        websocket->message().connect([this](WebSocket* websocket, const WebSocket::Message& msg) {
                                 error() << "got message" << msg.opcode() << msg.message();
-                                if (msg.opcode() == WebSocket::Message::TextFrame) {
-                                    websocket->write(msg);
-                                    EventLoop::eventLoop()->callLater(std::bind([websocket] {
-                                                websocket->close();
-                                                websocket->message().disconnect();
-                                            }));
-                                }
+                                // if (msg.opcode() == WebSocket::Message::TextFrame) {
+                                //     websocket->write(msg);
+                                //     mWebSockets.erase(websocket);
+                                // }
                             });
+                        websocket->error().connect([this](WebSocket* websocket) {
+                                mWebSockets.erase(websocket);
+                            });
+                        websocket->disconnected().connect([this](WebSocket* websocket) {
+                                mWebSockets.erase(websocket);
+                            });
+                        sendAllPeers(websocket);
                         return;
                     }
                 }
@@ -108,6 +115,31 @@ Scheduler::~Scheduler()
 {
 }
 
+void Scheduler::sendToAll(const WebSocket::Message& msg)
+{
+    for (auto socket : mWebSockets) {
+        socket.second->write(msg);
+    }
+}
+
+void Scheduler::sendToAll(const String& msg)
+{
+    const WebSocket::Message wmsg(WebSocket::Message::TextFrame, msg);
+    sendToAll(wmsg);
+}
+
+void Scheduler::sendAllPeers(const WebSocket::SharedPtr& socket)
+{
+    for (const Peer::SharedPtr& peer : mPeers) {
+        const Json peerj = Json::object({
+                { "id", peer->id() },
+                { "name", peer->name().ref() }
+            });
+        const WebSocket::Message msg(WebSocket::Message::TextFrame, peerj.dump());
+        socket->write(msg);
+    }
+}
+
 void Scheduler::addPeer(const Peer::SharedPtr& peer)
 {
     mPeers.insert(peer);
@@ -123,7 +155,21 @@ void Scheduler::addPeer(const Peer::SharedPtr& peer)
                     }
                 }
                 break; }
+            case Peer::NameChanged: {
+                const Json peerj = Json::object({
+                        { "id", peer->id() },
+                        { "name", peer->name().ref() }
+                    });
+                const WebSocket::Message msg(WebSocket::Message::TextFrame, peerj.dump());
+                sendToAll(msg);
+                break; }
             case Peer::Disconnected:
+                const Json peerj = Json::object({
+                        { "id", peer->id() },
+                        { "delete", true }
+                    });
+                const WebSocket::Message msg(WebSocket::Message::TextFrame, peerj.dump());
+                sendToAll(msg);
                 mPeers.erase(peer);
                 break;
             }

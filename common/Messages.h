@@ -6,6 +6,7 @@
 #include <RequestJobsMessage.h>
 #include <HandshakeMessage.h>
 #include <JobResponseMessage.h>
+#include <PeerMessage.h>
 
 namespace messages {
 void init();

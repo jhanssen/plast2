@@ -4,8 +4,10 @@
 #include "Peer.h"
 #include <Messages.h>
 #include <HttpServer.h>
+#include <WebSocket.h>
 #include <rct/SocketClient.h>
 #include <rct/SocketServer.h>
+#include <rct/Hash.h>
 #include <rct/Set.h>
 #include <memory>
 
@@ -31,12 +33,16 @@ public:
 
 private:
     void addPeer(const Peer::SharedPtr& peer);
+    void sendAllPeers(const WebSocket::SharedPtr& socket);
+    void sendToAll(const WebSocket::Message& msg);
+    void sendToAll(const String& msg);
 
 private:
     SocketServer mServer;
     HttpServer mHttpServer;
     Set<Peer::SharedPtr> mPeers;
     Options mOpts;
+    Hash<WebSocket*, WebSocket::SharedPtr> mWebSockets;
 
 private:
     static WeakPtr sInstance;
