@@ -25,6 +25,15 @@ function init() {
     ws.onclose = callbacks.websocketClose;
     ws.onmessage = callbacks.websocketMessage;
     ws.onerror = callbacks.websocketError;
+
+    var canvas = document.getElementById('stats');
+    paper.setup(canvas);
+    var path = new paper.Path();
+    path.strokeColor = 'black';
+    var start = new paper.Point(100, 100);
+    path.moveTo(start);
+    path.lineTo(start.add([ 200, -50 ]));
+    paper.view.draw();
 }
 
 window.addEventListener("load", init, false);
