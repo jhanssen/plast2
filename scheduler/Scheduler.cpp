@@ -81,6 +81,7 @@ Scheduler::Scheduler(const Options& opts)
                 const Path path = Path(base + file).resolved();
                 if (!path.startsWith(base)) {
                     // no
+                    error() << "Don't want to serve" << path;
                     const String data = "No.";
                     HttpServer::Response response(req->protocol(), 404);
                     response.headers().add("Content-Length", String::number(data.size()));
