@@ -31,9 +31,14 @@ Scheduler::Scheduler(const Options& opts)
                     HttpServer::Response response(req->protocol(), 100);
                     req->write(response);
                 }
-                req->body().readyRead().connect([req](HttpServer::Body* body) {
+                req->body().readyRead().connect([](HttpServer::Body* body) {
                         error() << "body data" << body->read();
                         if (body->done()) {
+                            HttpServer::Request::SharedPtr req = body->request();
+                            if (!req) {
+                                error() << "!NO GOOD";
+                                return;
+                            }
                             error() << "!DONE body";
                             HttpServer::Response response(req->protocol(), 200);
                             response.headers().add("Content-Length", "9");
@@ -41,7 +46,6 @@ Scheduler::Scheduler(const Options& opts)
                             response.headers().add("Connection", "keep-alive");
                             response.setBody("blah body");
                             req->write(response);
-                            req->body().readyRead().disconnect();
                         }
                     });
             } else {

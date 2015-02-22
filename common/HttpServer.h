@@ -67,12 +67,13 @@ public:
         bool done() const;
         String read();
 
+        std::shared_ptr<Request> request() const { return mRequest.lock(); }
         Signal<std::function<void(Body*)> >& readyRead() { return mReadyRead; }
 
     private:
-        Body(Request* req);
+        Body();
 
-        Request* mRequest;
+        std::weak_ptr<Request> mRequest;
         bool mDone;
         String mBody;
         Signal<std::function<void(Body*)> > mReadyRead;
@@ -194,8 +195,8 @@ inline void HttpServer::Response::setBody(const String& body)
     mBody = body;
 }
 
-inline HttpServer::Body::Body(Request* req)
-    : mRequest(req), mDone(false)
+inline HttpServer::Body::Body()
+    : mDone(false)
 {
 }
 

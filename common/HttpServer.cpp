@@ -219,6 +219,7 @@ void HttpServer::addClient(const SocketClient::SharedPtr& client)
                         return;
                     if (data.state == Data::ReadingStatus) {
                         data.request.reset(new Request(this, data.client));
+                        data.request->mBody.mRequest = data.request;
                         if (!data.request->parseStatus(line)) {
                             data.client->close();
                             data.client.reset();
@@ -373,7 +374,7 @@ List<String> HttpServer::Headers::values(const String& key) const
 }
 
 HttpServer::Request::Request(HttpServer* server, const SocketClient::SharedPtr& client)
-    : mClient(client), mProtocol(Http10), mMethod(Get), mBody(this), mServer(server)
+    : mClient(client), mProtocol(Http10), mMethod(Get), mServer(server)
 {
 }
 
