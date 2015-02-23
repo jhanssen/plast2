@@ -3,6 +3,16 @@
 var ws, scheduler;
 
 var peers = {
+    init: function(canvas) {
+        var ctx = canvas.getContext("2d");
+        this._canvas = canvas;
+        this._pixelRatio = ctx.webkitBackingStorePixelRatio
+            || ctx.mozBackingStorePixelRatio
+            || ctx.msBackingStorePixelRatio
+            || ctx.oBackingStorePixelRatio
+            || ctx.backingStorePixelRatio
+            || 1;
+    },
     add: function(peer) {
         this._peers[peer.id] = peer;
     },
@@ -47,13 +57,14 @@ var peers = {
         paper.view.draw();
     },
     width: function() {
-        return this._canvas.width / (window.devicePixelRatio || 1);
+        return this._canvas.width / ((window.devicePixelRatio || 1) / this._pixelRatio);
     },
     height: function() {
-        return this._canvas.height / (window.devicePixelRatio || 1);
+        return this._canvas.height / ((window.devicePixelRatio || 1) / this._pixelRatio);
     },
     _canvas: undefined,
-    _peers: {}
+    _peers: {},
+    _pixelRatio: undefined
 };
 
 function Peer(args) {
@@ -127,7 +138,7 @@ function init() {
     ws.onerror = callbacks.websocketError;
 
     var canvas = document.getElementById('stats');
-    peers._canvas = canvas;
+    peers.init(canvas);
 
     scheduler = new Peer({ id: 0, name: "scheduler", color: "red" });
 
