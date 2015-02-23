@@ -146,12 +146,12 @@ void Scheduler::sendAllPeers(const WebSocket::SharedPtr& socket)
 void Scheduler::addPeer(const Peer::SharedPtr& peer)
 {
     mPeers.insert(peer);
-    peer->event().connect([this](const Peer::SharedPtr& peer, Peer::Event event, const Value& value) {
+    peer->event().connect([this](const Peer::SharedPtr& peer, Peer::Event event, const Json& json) {
             switch (event) {
             case Peer::JobsAvailable: {
-                HasJobsMessage msg(value["count"].toInteger(),
-                                   value["port"].toInteger());
-                msg.setPeer(value["peer"].toString());
+                HasJobsMessage msg(json["count"].number_value(),
+                                   json["port"].number_value());
+                msg.setPeer(json["peer"].string_value());
                 for (const Peer::SharedPtr& other : mPeers) {
                     if (other != peer) {
                         other->connection()->send(msg);
@@ -166,7 +166,7 @@ void Scheduler::addPeer(const Peer::SharedPtr& peer)
                 const WebSocket::Message msg(WebSocket::Message::TextFrame, peerj.dump());
                 sendToAll(msg);
                 break; }
-            case Peer::Disconnected:
+            case Peer::Disconnected: {
                 const Json peerj = Json::object({
                         { "id", peer->id() },
                         { "delete", true }
@@ -174,7 +174,11 @@ void Scheduler::addPeer(const Peer::SharedPtr& peer)
                 const WebSocket::Message msg(WebSocket::Message::TextFrame, peerj.dump());
                 sendToAll(msg);
                 mPeers.erase(peer);
-                break;
+                break; }
+            case Peer::Websocket: {
+                const WebSocket::Message msg(WebSocket::Message::TextFrame, json.dump());
+                sendToAll(msg);
+                break; }
             }
         });
 }

@@ -25,6 +25,8 @@ public:
     void post(const Job::SharedPtr& job);
     Job::SharedPtr take();
 
+    Connection& scheduler() { return mConnection; }
+
 private:
     Connection* addClient(const SocketClient::SharedPtr& client);
     void handleJobMessage(const JobMessage::SharedPtr& msg, Connection* conn);

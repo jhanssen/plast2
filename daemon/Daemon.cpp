@@ -29,7 +29,16 @@ Daemon::~Daemon()
 void Daemon::handleJobMessage(const JobMessage::SharedPtr& msg, Connection* conn)
 {
     error() << "handling job message";
-    Job::SharedPtr job = Job::create(msg->path(), msg->args(), Job::LocalJob);
+
+    String hn;
+    hn.resize(sysconf(_SC_HOST_NAME_MAX));
+    if (gethostname(hn.data(), hn.size()) == 0) {
+        hn.resize(strlen(hn.constData()));
+    } else {
+        hn.clear();
+    }
+
+    Job::SharedPtr job = Job::create(msg->path(), msg->args(), Job::LocalJob, hn);
     job->statusChanged().connect([conn](Job* job, Job::Status status) {
             error() << "job status changed" << job << status;
             switch (status) {

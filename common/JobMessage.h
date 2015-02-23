@@ -20,10 +20,10 @@ public:
         : Message(MessageId), mId(0), mSerial(0)
     {
     }
-    JobMessage(const Path& path, const List<String>& args, uint64_t id = 0,
-               const String& pre = String(), int serial = 0)
+    JobMessage(const Path& path, const List<String>& args, uint64_t id = 0, const String& pre = String(),
+               int serial = 0, const String& remoteName = String())
         : Message(MessageId), mPath(path), mArgs(args), mId(id),
-          mPreprocessed(pre), mSerial(serial)
+          mPreprocessed(pre), mSerial(serial), mRemoteName(remoteName)
     {
     }
 
@@ -32,6 +32,7 @@ public:
     String preprocessed() const { return mPreprocessed; }
     uint64_t id() const { return mId; }
     int serial() const { return mSerial; }
+    String remoteName() const { return mRemoteName; }
 
     virtual void encode(Serializer& serializer) const;
     virtual void decode(Deserializer& deserializer);
@@ -42,16 +43,17 @@ private:
     uint64_t mId;
     String mPreprocessed;
     int mSerial;
+    String mRemoteName;
 };
 
 inline void JobMessage::encode(Serializer& serializer) const
 {
-    serializer << mPath << mArgs << mId << mPreprocessed << mSerial;
+    serializer << mPath << mArgs << mId << mPreprocessed << mSerial << mRemoteName;
 }
 
 inline void JobMessage::decode(Deserializer& deserializer)
 {
-    deserializer >> mPath >> mArgs >> mId >> mPreprocessed >> mSerial;
+    deserializer >> mPath >> mArgs >> mId >> mPreprocessed >> mSerial >> mRemoteName;
 }
 
 #endif

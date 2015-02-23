@@ -96,7 +96,8 @@ void Remote::handleJobMessage(const JobMessage::SharedPtr& msg, Connection* conn
 {
     error() << "handle job message!";
     // let's make a job out of this
-    Job::SharedPtr job = Job::create(msg->path(), msg->args(), Job::RemoteJob, msg->id(), msg->preprocessed(), msg->serial());
+    Job::SharedPtr job = Job::create(msg->path(), msg->args(), Job::RemoteJob, msg->remoteName(),
+                                     msg->id(), msg->preprocessed(), msg->serial());
     job->statusChanged().connect([conn](Job* job, Job::Status status) {
             error() << "remote job status changed" << job << status;
             switch (status) {
@@ -145,7 +146,8 @@ void Remote::handleRequestJobsMessage(const RequestJobsMessage::SharedPtr& msg, 
             // send this job to remote;
             error() << "sending job back";
             job->updateStatus(Job::RemotePending);
-            conn->send(JobMessage(job->path(), job->args(), job->id(), job->preprocessed(), job->serial()));
+            conn->send(JobMessage(job->path(), job->args(), job->id(), job->preprocessed(),
+                                  job->serial(), job->remoteName()));
             if (!--rem)
                 break;
         }

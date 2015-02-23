@@ -1,6 +1,8 @@
 #include "Peer.h"
 #include <Messages.h>
 
+using namespace json11;
+
 int Peer::sId = 0;
 
 Peer::Peer(const SocketClient::SharedPtr& client)
@@ -10,16 +12,30 @@ Peer::Peer(const SocketClient::SharedPtr& client)
             switch (msg->messageId()) {
             case HasJobsMessage::MessageId: {
                 const HasJobsMessage::SharedPtr jobsmsg = std::static_pointer_cast<HasJobsMessage>(msg);
-                Value value;
-                value["port"] = jobsmsg->port();
-                value["count"] = jobsmsg->count();
-                value["peer"] = conn->client()->peerName();
-                mEvent(shared_from_this(), JobsAvailable, value);
+
+                const Json obj = Json::object({
+                        { "port", jobsmsg->port() },
+                        { "count", jobsmsg->count() },
+                        { "peer", conn->client()->peerName().ref() }
+                    });
+                mEvent(shared_from_this(), JobsAvailable, obj);
                 break; }
             case PeerMessage::MessageId: {
                 const PeerMessage::SharedPtr peermsg = std::static_pointer_cast<PeerMessage>(msg);
                 mName = peermsg->name();
-                mEvent(shared_from_this(), NameChanged, mName);
+                const Json obj = mName.ref();
+                mEvent(shared_from_this(), NameChanged, obj);
+                break; }
+            case BuildingMessage::MessageId: {
+                const BuildingMessage::SharedPtr bmsg = std::static_pointer_cast<BuildingMessage>(msg);
+#warning fixme, BuildingMessage::id() is uint64_t
+                const Json obj = Json::object({
+                        { "peer", bmsg->peer().ref() },
+                        { "file", bmsg->file().ref() },
+                        { "start", (bmsg->type() == BuildingMessage::Start) },
+                        { "id", static_cast<int>(bmsg->id()) }
+                    });
+                mEvent(shared_from_this(), Websocket, obj);
                 break; }
             default:
                 error() << "Unexpected message Scheduler" << msg->messageId();
@@ -29,7 +45,7 @@ Peer::Peer(const SocketClient::SharedPtr& client)
         });
     mConnection.disconnected().connect([this](Connection* conn) {
             conn->disconnected().disconnect();
-            mEvent(shared_from_this(), Disconnected, Value());
+            mEvent(shared_from_this(), Disconnected, Json());
         });
 }
 

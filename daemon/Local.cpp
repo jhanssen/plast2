@@ -41,6 +41,9 @@ void Local::init()
             if (!job)
                 return;
             job->updateStatus(Job::Compiling);
+            Connection& scheduler = Daemon::instance()->remote().scheduler();
+            scheduler.send(BuildingMessage(job->remoteName(), job->compilerArgs()->sourceFile(),
+                                           BuildingMessage::Start, job->id()));
         });
     mPool.finished().connect([this](ProcessPool::Id id, Process* proc) {
             error() << "pool finished for" << id;
@@ -63,6 +66,10 @@ void Local::init()
                 }
                 return;
             }
+
+            Connection& scheduler = Daemon::instance()->remote().scheduler();
+            scheduler.send(BuildingMessage(BuildingMessage::Stop, job->id()));
+
             const int retcode = proc->returnCode();
             if (retcode != 0) {
                 if (retcode < 0) {
