@@ -93,3 +93,17 @@ void Job::writeFile(const String& data)
     }
     fclose(file);
 }
+const char* Job::statusName(Status status)
+{
+    switch (status) {
+    case Idle: return "idle";
+    case Preprocessing: return "preprocessing";
+    case Preprocessed: return "preprocessed";
+    case RemotePending: return "remotepending";
+    case RemoteReceiving: return "remotereceiving";
+    case Compiling: return "compiling";
+    case Compiled: return "compiled";
+    case Error: return "error";
+    }
+    return "";
+}

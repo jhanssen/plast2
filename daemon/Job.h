@@ -6,6 +6,7 @@
 #include <rct/Path.h>
 #include <rct/String.h>
 #include <rct/SignalSlot.h>
+#include <rct/Log.h>
 #include <memory>
 #include <cstdint>
 #include <stdio.h>
@@ -30,6 +31,7 @@ public:
     void start();
 
     enum Status { Idle, Preprocessing, Preprocessed, RemotePending, RemoteReceiving, Compiling, Compiled, Error };
+    static const char *statusName(Status status);
     Signal<std::function<void(Job*, Status)> >& statusChanged() { return mStatusChanged; }
     Signal<std::function<void(Job*)> >& readyReadStdOut() { return mReadyReadStdOut; }
     Signal<std::function<void(Job*)> >& readyReadStdErr() { return mReadyReadStdErr; }
@@ -93,6 +95,12 @@ inline void Job::updateStatus(Status status)
 {
     mStatus = status;
     mStatusChanged(this, status);
+}
+
+inline Log operator<<(Log log, Job::Status status)
+{
+    log << Job::statusName(status);
+    return log;
 }
 
 #endif
