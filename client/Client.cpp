@@ -31,7 +31,15 @@ bool Client::run(int argc, char** argv)
     mConnection.finished().connect(std::bind([](){ EventLoop::eventLoop()->quit(); }));
     mConnection.disconnected().connect(std::bind([](){ EventLoop::eventLoop()->quit(); }));
     if (!mConnection.connectUnix(plast::defaultSocketFile())) {
-        error("Can't seem to connect to server");
+        Path path = plast::resolveCompiler(argv[0]);
+        // error() << "Building local" << reason << String::join(args, ' ');
+        if (!path.isEmpty()) {
+            argv[0] = path.data();
+            execv(path.constData(), argv); // execute without resolving symlink
+            fprintf(stderr, "execv error for %s %d/%s\n", path.constData(), errno, strerror(errno));
+            return false;
+        }
+        fprintf(stderr, "Failed to find compiler for '%s'\n", argv[0]);
         return false;
     }
 
