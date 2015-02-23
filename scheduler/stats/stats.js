@@ -67,8 +67,12 @@ Peer.prototype = {
     rect: undefined,
     text: undefined,
     draw: function() {
+        if (this._path)
+            this._path.remove();
         this._path = new paper.Path.RoundRectangle(this.rect, peers.roundSize());
         this._path.fillColor = this.color;
+        if (this._text)
+            this._text.remove();
         this._text = new paper.PointText(this.rect.center);
         this._text.content = this.name;
         this._text.style = { fontSize: 15, fillColor: "white", justification: "center" };
