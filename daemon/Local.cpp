@@ -187,11 +187,32 @@ void Local::post(const Job::SharedPtr& job)
             cmdline.push_back(data.filename);
         }
 
+        int i = 0;
+        while (i < cmdline.size()) {
+            const String &arg = cmdline.at(i);
+            // error() << "considering" << i << arg;
+            if (arg == "-MF") {
+                cmdline.remove(i, 2);
+            } else if (arg == "-MT") {
+                cmdline.remove(i, 2);
+            } else if (arg == "-MMD") {
+                cmdline.removeAt(i);
+            } else if (arg.startsWith("-I")) {
+                if (arg.size() == 2) {
+                    cmdline.remove(i, 2);
+                } else {
+                    cmdline.removeAt(i);
+                }
+            } else {
+                ++i;
+            }
+        }
+
         cmdline.removeFirst();
         cmdline.prepend(lang);
         cmdline.prepend("-x");
         error() << "Compiler resolved to" << cmd << job->path() << cmdline << data.filename;
-        const ProcessPool::Id id = mPool.prepare(job->path(), cmd, cmdline, List<String>(), job->preprocessed());
+        const ProcessPool::Id id = mPool.prepare(Path(), cmd, cmdline, List<String>(), job->preprocessed());
         mJobs[id] = data;
         mPool.post(id);
     } else {
