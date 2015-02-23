@@ -196,9 +196,15 @@ void Local::post(const Job::SharedPtr& job)
     }
 
     error() << "Compiler resolved to" << cmd << job->path() << cmdline << data.filename;
-    const ProcessPool::Id id = mPool.prepare(job->path(), cmd, cmdline, List<String>(), job->preprocessed());
-    mJobs[id] = data;
-    mPool.post(id);
+    if (job->type() == Job::LocalJob) {
+        const ProcessPool::Id id = mPool.prepare(job->path(), cmd, cmdline);
+        mJobs[id] = data;
+        mPool.post(id);
+    } else {
+        const ProcessPool::Id id = mPool.prepare(job->path(), cmd, cmdline, List<String>(), job->preprocessed());
+        mJobs[id] = data;
+        mPool.post(id);
+    }
 }
 
 void Local::run(const Job::SharedPtr& job)
