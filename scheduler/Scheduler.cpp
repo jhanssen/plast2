@@ -135,6 +135,7 @@ void Scheduler::sendAllPeers(const WebSocket::SharedPtr& socket)
 {
     for (const Peer::SharedPtr& peer : mPeers) {
         const Json peerj = Json::object({
+                { "type", "peer" },
                 { "id", peer->id() },
                 { "name", peer->name().ref() }
             });
@@ -160,6 +161,7 @@ void Scheduler::addPeer(const Peer::SharedPtr& peer)
                 break; }
             case Peer::NameChanged: {
                 const Json peerj = Json::object({
+                        { "type", "peer" },
                         { "id", peer->id() },
                         { "name", peer->name().ref() }
                     });
@@ -168,6 +170,7 @@ void Scheduler::addPeer(const Peer::SharedPtr& peer)
                 break; }
             case Peer::Disconnected: {
                 const Json peerj = Json::object({
+                        { "type", "peer" },
                         { "id", peer->id() },
                         { "delete", true }
                     });

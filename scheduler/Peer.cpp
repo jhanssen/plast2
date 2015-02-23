@@ -30,11 +30,13 @@ Peer::Peer(const SocketClient::SharedPtr& client)
                 const BuildingMessage::SharedPtr bmsg = std::static_pointer_cast<BuildingMessage>(msg);
 #warning fixme, BuildingMessage::id() is uint64_t
                 const Json obj = Json::object({
+                        { "type", "build" },
+                        { "peerid", mId },
                         { "local", mName.ref() },
                         { "peer", bmsg->peer().ref() },
                         { "file", bmsg->file().ref() },
                         { "start", (bmsg->type() == BuildingMessage::Start) },
-                        { "id", static_cast<int>(bmsg->id()) }
+                        { "jobid", static_cast<int>(bmsg->id()) }
                     });
                 mEvent(shared_from_this(), Websocket, obj);
                 break; }
