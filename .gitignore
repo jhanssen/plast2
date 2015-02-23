@@ -17,3 +17,7 @@ lib
 /daemon/.gdb_brestore
 /daemon/.gdb_brestore.txt
 /daemon/.gdb_history
+/client/c++
+/client/cc
+/client/g++
+/client/gcc
