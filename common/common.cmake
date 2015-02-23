@@ -12,7 +12,7 @@ if (APPLE)
   target_link_libraries(common ${SECURITY_LIBRARY})
 endif()
 
-find_library(WSLAY_LIBRARY wslay HINTS ${CMAKE_CURRENT_LIST_DIR}/../lib)
-target_link_libraries(common ${WSLAY_LIBRARY})
+# find_library(WSLAY_LIBRARY wslay HINTS ${CMAKE_CURRENT_LIST_DIR}/../lib)
+target_link_libraries(common -L${CMAKE_CURRENT_LIST_DIR}/../lib -lwslay -Wl,-rpath,${CMAKE_CURRENT_LIST_DIR}/../lib)
 
 include_directories(${CMAKE_CURRENT_LIST_DIR} ${CMAKE_CURRENT_LIST_DIR}/../json11)
