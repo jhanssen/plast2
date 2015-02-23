@@ -29,9 +29,9 @@ public:
     template<typename T>
     struct LowerLess
     {
-        bool operator()(const T& l, const T& b) const
+        bool operator()(const T& l, const T& r) const
         {
-            return l.toLower() < b.toLower();
+            return l.compare(r, String::CaseInsensitive) < 0;
         }
     };
 
