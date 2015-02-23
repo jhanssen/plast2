@@ -29,6 +29,7 @@ public:
     static SharedPtr job(uint64_t j);
 
     void start();
+    void abort();
 
     enum Status { Idle, Preprocessing, Preprocessed, RemotePending, RemoteReceiving, Compiling, Compiled, Error };
     static const char *statusName(Status status);

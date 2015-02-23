@@ -11,6 +11,7 @@ Job::Job(const Path& path, const List<String>& args, Type type,
     : mArgs(args), mPath(path), mRemoteId(remoteId), mPreprocessed(preprocessed),
       mStatus(Idle), mType(type), mSerial(serial), mId(++sNextId), mRemoteName(remoteName)
 {
+#warning this breaks rtags
     mCompilerArgs = CompilerArgs::create(mArgs);
 }
 
@@ -106,4 +107,8 @@ const char* Job::statusName(Status status)
     case Error: return "error";
     }
     return "";
+}
+void Job::abort()
+{
+#warning implement me
 }

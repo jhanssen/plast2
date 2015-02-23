@@ -32,6 +32,7 @@ void Daemon::handleJobMessage(const JobMessage::SharedPtr& msg, Connection* conn
 
     String hn;
     hn.resize(sysconf(_SC_HOST_NAME_MAX));
+#warning cache hn
     if (gethostname(hn.data(), hn.size()) == 0) {
         hn.resize(strlen(hn.constData()));
     } else {
@@ -39,6 +40,11 @@ void Daemon::handleJobMessage(const JobMessage::SharedPtr& msg, Connection* conn
     }
 
     Job::SharedPtr job = Job::create(msg->path(), msg->args(), Job::LocalJob, hn);
+    Job::WeakPtr weak = job;
+    conn->disconnected().connect([weak](Connection *) {
+            if (Job::SharedPtr job = weak.lock())
+                job->abort();
+        });
     job->statusChanged().connect([conn](Job* job, Job::Status status) {
             error() << "job status changed" << job << status;
             switch (status) {

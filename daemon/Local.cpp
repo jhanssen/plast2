@@ -20,6 +20,7 @@ void Local::init()
 {
     mPool.setCount(Daemon::instance()->options().jobCount);
     mPool.readyReadStdOut().connect([this](ProcessPool::Id id, Process* proc) {
+            mJobs.remove(id);
             const Data& data = mJobs[id];
             Job::SharedPtr job = data.job.lock();
             if (!job)
@@ -28,6 +29,7 @@ void Local::init()
             job->mReadyReadStdOut(job.get());
         });
     mPool.readyReadStdErr().connect([this](ProcessPool::Id id, Process* proc) {
+            assert(mJobs.contains(id));
             const Data& data = mJobs[id];
             Job::SharedPtr job = data.job.lock();
             if (!job)
@@ -36,6 +38,7 @@ void Local::init()
             job->mReadyReadStdErr(job.get());
         });
     mPool.started().connect([this](ProcessPool::Id id, Process*) {
+            assert(mJobs.contains(id));
             const Data& data = mJobs[id];
             Job::SharedPtr job = data.job.lock();
             if (!job)
@@ -47,18 +50,21 @@ void Local::init()
         });
     mPool.finished().connect([this](ProcessPool::Id id, Process* proc) {
             error() << "pool finished for" << id;
+            assert(mJobs.contains(id));
             const Data data = mJobs[id];
             const int fd = data.fd;
             const String fn = data.filename;
             Job::SharedPtr job = data.job.lock();
             const bool localForRemote = !fn.isEmpty();
             FILE* f = 0;
+
+            mJobs.erase(id);
             if (localForRemote) {
                 assert(fd != -1);
-                mJobs.erase(id);
                 f = fdopen(fd, "r");
                 assert(f);
             }
+
             if (!job) {
                 if (localForRemote) {
                     fclose(f);
@@ -83,14 +89,7 @@ void Local::init()
                     f = freopen(fn.constData(), "r", f);
                     assert(f);
 
-                    char buf[65536];
-                    size_t r;
-                    while (!feof(f) && !ferror(f)) {
-                        r = fread(buf, 1, sizeof(buf), f);
-                        if (r) {
-                            job->mObjectCode.append(buf, r);
-                        }
-                    }
+                    job->mObjectCode = Rct::readAll(f);
                     if (job->mObjectCode.isEmpty()) {
                         job->mError = "Got no object code for compile";
                         job->updateStatus(Job::Error);
@@ -191,17 +190,14 @@ void Local::post(const Job::SharedPtr& job)
         cmdline.removeFirst();
         cmdline.prepend(lang);
         cmdline.prepend("-x");
-    } else {
-        cmdline.removeFirst();
-    }
-
-    error() << "Compiler resolved to" << cmd << job->path() << cmdline << data.filename;
-    if (job->type() == Job::LocalJob) {
-        const ProcessPool::Id id = mPool.prepare(job->path(), cmd, cmdline);
+        error() << "Compiler resolved to" << cmd << job->path() << cmdline << data.filename;
+        const ProcessPool::Id id = mPool.prepare(job->path(), cmd, cmdline, List<String>(), job->preprocessed());
         mJobs[id] = data;
         mPool.post(id);
     } else {
-        const ProcessPool::Id id = mPool.prepare(job->path(), cmd, cmdline, List<String>(), job->preprocessed());
+        error() << "Compiler resolved to" << cmd << job->path() << cmdline << data.filename;
+        cmdline.removeFirst();
+        const ProcessPool::Id id = mPool.prepare(job->path(), cmd, cmdline);
         mJobs[id] = data;
         mPool.post(id);
     }

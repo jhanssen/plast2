@@ -18,6 +18,7 @@ Remote::~Remote()
 void Remote::init()
 {
     mServer.newConnection().connect([this](SocketServer* server) {
+            error() << "Got a connection";
             SocketClient::SharedPtr client;
             for (;;) {
                 client = server->nextConnection();
@@ -35,8 +36,10 @@ void Remote::init()
         error() << "Unable to tcp listen";
         abort();
     }
+    error() << "Listening" << opts.localPort;
 
     mConnection.newMessage().connect([this](const std::shared_ptr<Message>& message, Connection* conn) {
+            error() << "Got a message" << message->messageId() << __LINE__;
             switch (message->messageId()) {
             case HasJobsMessage::MessageId:
                 handleHasJobsMessage(std::static_pointer_cast<HasJobsMessage>(message), conn);
@@ -288,6 +291,7 @@ Connection* Remote::addClient(const SocketClient::SharedPtr& client)
     error() << "remote client added";
     Connection* conn = new Connection(client);
     conn->newMessage().connect([this](const std::shared_ptr<Message>& msg, Connection* conn) {
+            error() << "Got a message" << msg->messageId() << __LINE__;
             switch (msg->messageId()) {
             case JobMessage::MessageId:
                 handleJobMessage(std::static_pointer_cast<JobMessage>(msg), conn);
